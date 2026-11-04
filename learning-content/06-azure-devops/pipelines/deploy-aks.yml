@@ -1,0 +1,138 @@
+
+# Multi-stage deployment to AKS: dev (auto) -> stage (auto + smoke) -> prod (approval + canary).
+# Build once, promote the same immutable image digest through every environment.
+
+trigger: none
+
+resources:
+  pipelines:
+    - pipeline: ci
+      source: 'web-ci'
+      trigger:
+        branches: { include: [main] }
+
+parameters:
+  - name: skipCanary
+    displayName: Skip canary and go straight to full rollout
+    type: boolean
+    default: false
+
+variables:
+  - name: imageRepo
+    value: 'myregistry.azurecr.io/web'
+  - name: tag
+    value: '$(resources.pipeline.ci.sourceCommit)'
+
+stages:
+  - stage: Dev
+    jobs:
+      - deployment: deploy_dev
+        environment: 'web-dev.demo'
+        pool: { vmImage: ubuntu-latest }
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: ci
+                  artifact: manifests
+                - task: KubernetesManifest@1
+                  inputs:
+                    action: deploy
+                    connectionType: kubernetesServiceConnection
+                    kubernetesServiceConnection: 'aks-dev'
+                    namespace: demo
+                    manifests: '$(Pipeline.Workspace)/ci/manifests/*.yaml'
+                    containers: '$(imageRepo):$(tag)'
+
+  - stage: Stage
+    dependsOn: Dev
+    condition: succeeded()
+    jobs:
+      - deployment: deploy_stage
+        environment: 'web-stage.demo'
+        pool: { vmImage: ubuntu-latest }
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: ci
+                  artifact: manifests
+                - task: KubernetesManifest@1
+                  inputs:
+                    action: deploy
+                    kubernetesServiceConnection: 'aks-stage'
+                    namespace: demo
+                    manifests: '$(Pipeline.Workspace)/ci/manifests/*.yaml'
+                    containers: '$(imageRepo):$(tag)'
+            on:
+              success:
+                steps:
+                  - script: |
+                      set -euo pipefail
+                      for i in $(seq 1 30); do
+                        code=$(curl -s -o /dev/null -w '%{http_code}' https://stage.example.com/healthz || true)
+                        [ "$code" = "200" ] && echo "healthy" && exit 0
+                        sleep 10
+                      done
+                      echo "smoke test failed"; exit 1
+                    displayName: Smoke test
+
+  - stage: Prod
+    dependsOn: Stage
+    condition: succeeded()
+    jobs:
+      # Approvals and checks are configured on the Environment, not in YAML.
+      - deployment: canary
+        condition: eq('${{ parameters.skipCanary }}', false)
+        environment: 'web-prod.demo'
+        pool: { vmImage: ubuntu-latest }
+        strategy:
+          canary:
+            increments: [10, 25]
+            preDeploy:
+              steps:
+                - script: echo "Recording pre-deploy SLO baseline"
+            deploy:
+              steps:
+                - download: ci
+                  artifact: manifests
+                - task: KubernetesManifest@1
+                  inputs:
+                    action: deploy
+                    strategy: canary
+                    percentage: $(strategy.increment)
+                    kubernetesServiceConnection: 'aks-prod'
+                    namespace: demo
+                    manifests: '$(Pipeline.Workspace)/ci/manifests/*.yaml'
+                    containers: '$(imageRepo):$(tag)'
+            postRouteTraffic:
+              steps:
+                - script: |
+                      set -euo pipefail
+                      # Query Azure Monitor / Prometheus for the canary error rate and fail if it
+                      # exceeds the SLO burn threshold. Failing here triggers the `on: failure` hook.
+                      echo "Evaluating canary against SLO for 5 minutes..."
+                      sleep 300
+                  displayName: SLO gate
+            on:
+              failure:
+                steps:
+                  - task: KubernetesManifest@1
+                    displayName: Reject canary (rollback)
+                    inputs:
+                      action: reject
+                      strategy: canary
+                      kubernetesServiceConnection: 'aks-prod'
+                      namespace: demo
+                      manifests: '$(Pipeline.Workspace)/ci/manifests/*.yaml'
+              success:
+                steps:
+                  - task: KubernetesManifest@1
+                    displayName: Promote canary
+                    inputs:
+                      action: promote
+                      strategy: canary
+                      kubernetesServiceConnection: 'aks-prod'
+                      namespace: demo
+                      manifests: '$(Pipeline.Workspace)/ci/manifests/*.yaml'
+                      containers: '$(imageRepo):$(tag)'

@@ -1,0 +1,124 @@
+
+# Terraform plan/apply with remote state in Azure Storage and a manual approval between them.
+# The plan artifact is what gets applied - never re-plan at apply time.
+
+trigger:
+  branches: { include: [main] }
+  paths: { include: ['infra/**'] }
+
+pr:
+  branches: { include: [main] }
+  paths: { include: ['infra/**'] }
+
+variables:
+  - group: terraform-backend      # backendRG, backendSA, backendContainer
+  - name: workingDir
+    value: 'infra/envs/prod'
+  - name: TF_IN_AUTOMATION
+    value: 'true'
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Validate
+    jobs:
+      - job: validate
+        steps:
+          - task: TerraformInstaller@1
+            inputs: { terraformVersion: '1.9.8' }
+
+          - script: |
+              set -euo pipefail
+              terraform fmt -check -recursive
+            workingDirectory: infra
+            displayName: terraform fmt
+
+          - task: TerraformTaskV4@4
+            displayName: terraform init
+            inputs:
+              provider: azurerm
+              command: init
+              workingDirectory: $(workingDir)
+              backendServiceArm: 'azure-prod-wif'          # workload identity federation
+              backendAzureRmResourceGroupName: $(backendRG)
+              backendAzureRmStorageAccountName: $(backendSA)
+              backendAzureRmContainerName: $(backendContainer)
+              backendAzureRmKey: 'prod.tfstate'
+
+          - task: TerraformTaskV4@4
+            displayName: terraform validate
+            inputs:
+              provider: azurerm
+              command: validate
+              workingDirectory: $(workingDir)
+
+          - script: |
+              set -euo pipefail
+              curl -sSL https://github.com/aquasecurity/tfsec/releases/latest/download/tfsec-linux-amd64 \
+                -o /usr/local/bin/tfsec && chmod +x /usr/local/bin/tfsec
+              tfsec $(workingDir) --minimum-severity HIGH
+            displayName: tfsec static analysis
+
+  - stage: Plan
+    dependsOn: Validate
+    jobs:
+      - job: plan
+        steps:
+          - task: TerraformInstaller@1
+            inputs: { terraformVersion: '1.9.8' }
+          - task: TerraformTaskV4@4
+            displayName: terraform init
+            inputs:
+              provider: azurerm
+              command: init
+              workingDirectory: $(workingDir)
+              backendServiceArm: 'azure-prod-wif'
+              backendAzureRmResourceGroupName: $(backendRG)
+              backendAzureRmStorageAccountName: $(backendSA)
+              backendAzureRmContainerName: $(backendContainer)
+              backendAzureRmKey: 'prod.tfstate'
+          - task: TerraformTaskV4@4
+            displayName: terraform plan
+            inputs:
+              provider: azurerm
+              command: plan
+              workingDirectory: $(workingDir)
+              environmentServiceNameAzureRM: 'azure-prod-wif'
+              commandOptions: '-lock-timeout=5m -detailed-exitcode -out=$(Build.ArtifactStagingDirectory)/tfplan'
+          - publish: $(Build.ArtifactStagingDirectory)
+            artifact: tfplan
+
+  - stage: Apply
+    dependsOn: Plan
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: apply
+        environment: 'infra-prod'      # approval + business-hours check configured here
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                  artifact: tfplan
+                - task: TerraformInstaller@1
+                  inputs: { terraformVersion: '1.9.8' }
+                - task: TerraformTaskV4@4
+                  displayName: terraform init
+                  inputs:
+                    provider: azurerm
+                    command: init
+                    workingDirectory: $(workingDir)
+                    backendServiceArm: 'azure-prod-wif'
+                    backendAzureRmResourceGroupName: $(backendRG)
+                    backendAzureRmStorageAccountName: $(backendSA)
+                    backendAzureRmContainerName: $(backendContainer)
+                    backendAzureRmKey: 'prod.tfstate'
+                - task: TerraformTaskV4@4
+                  displayName: terraform apply (saved plan)
+                  inputs:
+                    provider: azurerm
+                    command: apply
+                    workingDirectory: $(workingDir)
+                    environmentServiceNameAzureRM: 'azure-prod-wif'
+                    commandOptions: '-lock-timeout=5m $(Pipeline.Workspace)/tfplan/tfplan'

@@ -1,0 +1,19 @@
+{
+  "name": "sre-hub-ui",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "vendor": "node tools/vendor.mjs",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "mammoth": "^1.13.0",
+    "pptx-preview": "^1.0.7",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  }
+}

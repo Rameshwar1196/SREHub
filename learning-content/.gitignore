@@ -1,0 +1,16 @@
+.DS_Store
+Thumbs.db
+*.log
+.env
+*.tfstate
+*.tfstate.backup
+.terraform/
+kubeconfig
+*.pem
+*.key
+node_modules/
+__pycache__/
+.venv/
+.idea/
+.vscode/
+.sre-hub/

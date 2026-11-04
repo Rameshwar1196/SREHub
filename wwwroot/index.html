@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SRE Hub</title>
+    <script>document.documentElement.dataset.theme = (function () { try { return localStorage.getItem('srehub.theme') || 'ocean'; } catch (e) { return 'ocean'; } })();</script>
+    <link rel="stylesheet" href="css/site.css" />
+</head>
+
+<body>
+    <div class="bg-decor" aria-hidden="true"></div>
+
+    <div id="app-shell" class="loading" data-view="view-home">
+        <aside class="app-rail">
+            <div class="brand">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12 3 4 7v5.5c0 4.4 3.3 7.8 8 8.5 4.7-.7 8-4.1 8-8.5V7z" />
+                        <path d="m9 12 2.2 2.2L15.5 10" />
+                    </svg>
+                </span>
+                <span class="brand-text">
+                    <strong>SRE Hub</strong>
+                    <small>Learning library and Aras operations tooling</small>
+                </span>
+            </div>
+
+            <nav class="nav" aria-label="Primary">
+                <section class="nav-group" data-group="learning">
+                    <button type="button" class="nav-group-head" aria-expanded="true" title="Learning">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v14H6.5A2.5 2.5 0 0 0 4 19.5z" />
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20v4H6.5A2.5 2.5 0 0 1 4 19.5z" />
+                        </svg>
+                        <span class="nav-group-title">Learning</span>
+                        <svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="m7 10 5 5 5-5" />
+                        </svg>
+                    </button>
+
+                    <div class="nav-group-body">
+                        <div class="nav-tools">
+                            <input type="search" id="subject-filter" placeholder="Filter subjects" />
+                            <button type="button" id="subject-new-toggle" class="icon-button"
+                                title="Add a subject" aria-label="Add a subject">+</button>
+                        </div>
+
+                        <form id="subject-form" class="inline-form hidden">
+                            <input type="text" id="subject-name" placeholder="Folder name, e.g. 13-terraform"
+                                required />
+                            <input type="text" id="subject-description"
+                                placeholder="Short description (optional)" />
+                            <div class="inline-actions">
+                                <button type="submit">Create</button>
+                                <button type="button" id="subject-cancel" class="secondary">Cancel</button>
+                            </div>
+                        </form>
+
+                        <div id="subject-list-wrapper">
+                            <ul id="subject-list" class="subject-list"></ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="nav-group" data-group="operations">
+                    <button type="button" class="nav-group-head" aria-expanded="true" title="Aras Operations">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3.5 17.2a1.6 1.6 0 0 0 2.3 2.3l5.8-5.8a4 4 0 0 0 5.1-5.4l-2.4 2.4-2.1-.6-.6-2.1z" />
+                        </svg>
+                        <span class="nav-group-title">Aras Operations</span>
+                        <svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="m7 10 5 5 5-5" />
+                        </svg>
+                    </button>
+
+                    <div class="nav-group-body">
+                        <button type="button" class="nav-button" data-target="view-import"
+                            title="Feature license operation">
+                            <span class="nav-index">1</span>
+                            <span class="nav-text">
+                                <span class="nav-title">Feature license operation</span>
+                                <span class="nav-sub">Import, validate, update feature tree</span>
+                            </span>
+                        </button>
+
+                        <button type="button" class="nav-button" data-target="view-vault"
+                            title="Add / update Key Vault secrets">
+                            <span class="nav-index">2</span>
+                            <span class="nav-text">
+                                <span class="nav-title">Add / update Key Vault secrets</span>
+                                <span class="nav-sub">Sync license secrets</span>
+                            </span>
+                        </button>
+
+                        <button type="button" class="nav-button" data-target="view-terminal"
+                            title="PowerShell">
+                            <span class="nav-index">3</span>
+                            <span class="nav-text">
+                                <span class="nav-title">PowerShell</span>
+                                <span class="nav-sub">Shell for az, Az and scripts</span>
+                            </span>
+                        </button>
+
+                        <button type="button" class="nav-button" data-target="view-secure"
+                            title="Secure files">
+                            <span class="nav-index">4</span>
+                            <span class="nav-text">
+                                <span class="nav-title">Secure files</span>
+                                <span class="nav-sub">Encrypted project credentials and configs</span>
+                            </span>
+                        </button>
+                    </div>
+                </section>
+
+                <section class="nav-group" data-group="other">
+                    <button type="button" class="nav-group-head" aria-expanded="true" title="Other">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <rect x="4" y="4" width="7" height="7" rx="1.5" />
+                            <rect x="13" y="4" width="7" height="7" rx="1.5" />
+                            <rect x="4" y="13" width="7" height="7" rx="1.5" />
+                            <rect x="13" y="13" width="7" height="7" rx="1.5" />
+                        </svg>
+                        <span class="nav-group-title">Other</span>
+                        <svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="m7 10 5 5 5-5" />
+                        </svg>
+                    </button>
+
+                    <div class="nav-group-body">
+                        <button type="button" class="nav-button" data-target="view-repositories"
+                            title="Repositories">
+                            <span class="nav-index">1</span>
+                            <span class="nav-text">
+                                <span class="nav-title">Repositories</span>
+                                <span class="nav-sub">Source repositories</span>
+                            </span>
+                        </button>
+
+                        <button type="button" class="nav-button" data-target="view-worklog"
+                            title="Micro-mgmt">
+                            <span class="nav-index">2</span>
+                            <span class="nav-text">
+                                <span class="nav-title">Micro-mgmt</span>
+                                <span class="nav-sub">Yearly attendance and work log</span>
+                            </span>
+                        </button>
+
+                        <button type="button" class="nav-button" data-target="view-duty"
+                            title="DO shift and OneNote">
+                            <span class="nav-index">3</span>
+                            <span class="nav-text">
+                                <span class="nav-title">DO shift &amp; OneNote</span>
+                                <span class="nav-sub">Duty roster and OneNote updates</span>
+                            </span>
+                        </button>
+
+                        <button type="button" class="nav-button" data-target="view-links"
+                            title="Important links">
+                            <span class="nav-index">4</span>
+                            <span class="nav-text">
+                                <span class="nav-title">Important links</span>
+                                <span class="nav-sub">Quick shortcuts</span>
+                            </span>
+                        </button>
+
+                        <button type="button" class="nav-button" data-target="view-files"
+                            title="Important files">
+                            <span class="nav-index">5</span>
+                            <span class="nav-text">
+                                <span class="nav-title">Important files</span>
+                                <span class="nav-sub">PDF, Word, Excel, PowerPoint</span>
+                            </span>
+                        </button>
+                        <button type="button" class="nav-button" data-target="view-personal"
+                            title="Personal vault">
+                            <span class="nav-index">6</span>
+                            <span class="nav-text">
+                                <span class="nav-title">Personal vault</span>
+                                <span class="nav-sub">Fitness, finance, IDs and credentials</span>
+                            </span>
+                        </button>
+                    </div>
+                </section>
+
+                <section class="nav-group" data-group="mathematics">
+                    <button type="button" class="nav-group-head" aria-expanded="true" title="Mathematics">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M18 5H6.5l5.5 7-5.5 7H18" />
+                        </svg>
+                        <span class="nav-group-title">Mathematics</span>
+                        <svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="m7 10 5 5 5-5" />
+                        </svg>
+                    </button>
+
+                    <div class="nav-group-body">
+                        <button type="button" class="nav-button" data-target="view-math-library"
+                            title="Maths library">
+                            <span class="nav-index">1</span>
+                            <span class="nav-text">
+                                <span class="nav-title">Maths library</span>
+                                <span class="nav-sub">Book, class view and notes</span>
+                            </span>
+                        </button>
+
+                        <button type="button" class="nav-button" data-target="view-math-book"
+                            title="Book notes">
+                            <span class="nav-index">2</span>
+                            <span class="nav-text">
+                                <span class="nav-title">Book notes</span>
+                                <span class="nav-sub">All class notes in chapter order, printable</span>
+                            </span>
+                        </button>
+
+                        <button type="button" class="nav-button" data-target="view-math-calc"
+                            title="Calculator">
+                            <span class="nav-index">3</span>
+                            <span class="nav-text">
+                                <span class="nav-title">Calculator</span>
+                                <span class="nav-sub">Scientific expressions and history</span>
+                            </span>
+                        </button>
+
+                        <button type="button" class="nav-button" data-target="view-math-sre"
+                            title="SRE math">
+                            <span class="nav-index">4</span>
+                            <span class="nav-text">
+                                <span class="nav-title">SRE math</span>
+                                <span class="nav-sub">Uptime, error budget, unit converter</span>
+                            </span>
+                        </button>
+                    </div>
+                </section>
+            </nav>
+        </aside>
+
+        <div class="app-body">
+            <header class="app-topbar">
+                <button type="button" id="rail-toggle" class="toggle-button" title="Collapse navigation"
+                    aria-label="Collapse navigation" aria-expanded="true">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M14.5 7 9.5 12l5 5" />
+                        <path d="M4.5 4v16" />
+                    </svg>
+                </button>
+
+                <div class="topbar-spacer"></div>
+
+                <div class="profile">
+                    <button type="button" id="profile-toggle" class="profile-button" aria-haspopup="menu"
+                        aria-expanded="false">
+                        <span class="avatar" id="user-avatar">?</span>
+                        <span class="user-meta">
+                            <span class="name" id="user-name">-</span>
+                            <span class="email" id="user-email"></span>
+                        </span>
+                        <svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="m7 10 5 5 5-5" />
+                        </svg>
+                    </button>
+
+                    <div id="profile-menu" class="profile-menu hidden" role="menu">
+                        <div class="menu-label">Theme</div>
+                        <div class="theme-options" role="group" aria-label="Theme">
+                            <button type="button" class="theme-swatch" data-theme="ocean" title="Ocean" aria-label="Ocean"></button>
+                            <button type="button" class="theme-swatch" data-theme="sunset" title="Sunset" aria-label="Sunset"></button>
+                            <button type="button" class="theme-swatch" data-theme="forest" title="Forest" aria-label="Forest"></button>
+                            <button type="button" class="theme-swatch" data-theme="violet" title="Violet" aria-label="Violet"></button>
+                            <button type="button" class="theme-swatch" data-theme="light" title="Light" aria-label="Light"></button>
+                        </div>
+                        <div class="menu-separator" role="separator"></div>
+                        <button type="button" id="about" class="menu-item" role="menuitem">
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="12" cy="12" r="9" />
+                                <path d="M12 11v5M12 8h.01" />
+                            </svg>
+                            About SRE Hub
+                        </button>
+                        <div class="menu-separator" role="separator"></div>
+                        <button type="button" id="logout" class="menu-item danger" role="menuitem">
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M9.5 21H5.5A2.5 2.5 0 0 1 3 18.5v-13A2.5 2.5 0 0 1 5.5 3h4" />
+                                <path d="m16 16 5-4-5-4" />
+                                <path d="M21 12H9" />
+                            </svg>
+                            Sign out
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <main>
+            <!-- View: Learning Library -->
+            <section id="view-home" class="view active">
+                <div class="page page-wide">
+                    <div class="home-hero">
+                        <svg class="home-art" viewBox="0 0 1200 420" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+                            <defs>
+                                <linearGradient id="home-sky" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0" stop-color="#1b1464" />
+                                    <stop offset="0.55" stop-color="#8b2fc9" />
+                                    <stop offset="1" stop-color="#ff7a59" />
+                                </linearGradient>
+                                <radialGradient id="home-sun" cx="0.5" cy="0.5" r="0.5">
+                                    <stop offset="0" stop-color="#fff3b0" />
+                                    <stop offset="0.6" stop-color="#ffc857" />
+                                    <stop offset="1" stop-color="#ffc857" stop-opacity="0" />
+                                </radialGradient>
+                                <linearGradient id="home-far" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0" stop-color="#5b2a9e" />
+                                    <stop offset="1" stop-color="#2a1766" />
+                                </linearGradient>
+                                <linearGradient id="home-near" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0" stop-color="#2c1b6e" />
+                                    <stop offset="1" stop-color="#120a3a" />
+                                </linearGradient>
+                            </defs>
+                            <rect width="1200" height="420" fill="url(#home-sky)" />
+                            <circle cx="820" cy="250" r="170" fill="url(#home-sun)" />
+                            <g fill="#fff" opacity="0.8">
+                                <circle cx="90" cy="50" r="1.6" /><circle cx="210" cy="90" r="1.2" /><circle cx="330" cy="40" r="1.8" />
+                                <circle cx="470" cy="80" r="1.2" /><circle cx="600" cy="35" r="1.6" /><circle cx="720" cy="70" r="1.2" />
+                                <circle cx="980" cy="45" r="1.8" /><circle cx="1100" cy="95" r="1.2" /><circle cx="1160" cy="40" r="1.6" />
+                            </g>
+                            <path d="M0 330 L140 230 L240 290 L380 190 L520 300 L650 220 L780 310 L930 210 L1080 300 L1200 250 L1200 420 L0 420Z" fill="url(#home-far)" opacity="0.9" />
+                            <path d="M0 380 L170 290 L290 350 L460 240 L600 340 L740 270 L900 360 L1040 280 L1200 350 L1200 420 L0 420Z" fill="url(#home-near)" />
+                            <path d="M380 420 L610 120 L700 230 L760 170 L980 420Z" fill="#0c0630" />
+                            <path d="M610 120 L575 168 L600 160 L618 182 L640 160 L662 172Z" fill="#ffffff" opacity="0.9" />
+                            <g stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none">
+                                <path d="M610 120 V84" />
+                            </g>
+                            <path d="M610 84 L646 94 L610 106Z" fill="#ff5f8f" />
+                        </svg>
+
+                        <div class="home-hero-text">
+                            <span class="home-eyebrow" id="home-greeting">Welcome</span>
+                            <h1 id="home-title">SRE Hub</h1>
+                            <blockquote class="home-quote">
+                                <p id="home-quote"></p>
+                                <cite id="home-author"></cite>
+                            </blockquote>
+                        </div>
+                    </div>
+
+                    <div class="home-cards">
+                        <button type="button" class="home-card" data-go="view-learning"><strong>Learning library</strong><span>Notes, flashcards and progress</span></button>
+                        <button type="button" class="home-card" data-go="view-duty"><strong>Duty roster</strong><span>On-call, shifts and handovers</span></button>
+                        <button type="button" class="home-card" data-go="view-secure"><strong>Secure files</strong><span>Encrypted configs and keys</span></button>
+                        <button type="button" class="home-card" data-go="view-worklog"><strong>Work log</strong><span>Track what you did today</span></button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-learning" class="view">
+                <div class="page page-wide">
+                    <div class="page-head">
+                        <div>
+                            <p class="kicker">Knowledge base</p>
+                            <h2>Learning library</h2>
+                            <p class="page-sub">Browse curated subjects, track what you have completed, and drill
+                                yourself with flashcards generated from your notes.</p>
+                        </div>
+                    </div>
+
+                    <div class="learning-layout">
+                        <div class="learning-main">
+                            <div class="learning-toolbar">
+                                <form id="learning-search-form" class="search-form">
+                                    <input type="search" id="learning-search"
+                                        placeholder="Search all learning content" required minlength="2" />
+                                    <button type="submit">Search</button>
+                                    <label class="inline-check"><input type="checkbox" id="search-current-subject" />
+                                        this subject only</label>
+                                </form>
+                                <div class="mode-switch">
+                                    <button type="button" id="mode-browse" class="mode-button active">Browse</button>
+                                    <button type="button" id="mode-cards" class="mode-button">Flashcards</button>
+                                    <label class="inline-check"><input type="checkbox" id="cards-current-subject"
+                                            checked /> this subject only</label>
+                                </div>
+                            </div>
+
+                            <div id="learning-browse">
+                                <header id="subject-header" class="subject-header"></header>
+
+                                <div class="learning-split">
+                                    <div class="tree-pane">
+                                        <div class="tree-head">
+                                            <button type="button" id="tree-toggle" class="toggle-button"
+                                                title="Collapse files" aria-label="Collapse files"
+                                                aria-expanded="true">
+                                                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path d="M14.5 7 9.5 12l5 5" />
+                                                </svg>
+                                            </button>
+                                            <span class="tree-title">Files</span>
+                                        </div>
+                                        <nav id="file-tree" class="file-tree"></nav>
+                                    </div>
+                                    <article id="file-view" class="file-view"></article>
+                                </div>
+
+                                <details id="add-panel" class="add-panel">
+                                    <summary>Add content to this subject</summary>
+
+                                    <div class="add-grid">
+                                        <form id="note-form">
+                                            <h4>New / edit note</h4>
+                                            <input type="hidden" id="note-subject" />
+                                            <div class="field">
+                                                <label for="note-path">File path</label>
+                                                <input type="text" id="note-path"
+                                                    placeholder="notes/terraform-state.md" required />
+                                            </div>
+                                            <div class="field">
+                                                <label for="note-content">Markdown</label>
+                                                <textarea id="note-content" rows="10"
+                                                    placeholder="# Title&#10;&#10;## Interview questions&#10;&#10;**Q: ...**&#10;Answer..."></textarea>
+                                            </div>
+                                            <label class="inline-check"><input type="checkbox" id="note-overwrite" />
+                                                Overwrite if it exists</label>
+                                            <div class="submit-row">
+                                                <button type="submit">Save note</button>
+                                            </div>
+                                        </form>
+
+                                        <form id="upload-form">
+                                            <h4>Upload files</h4>
+                                            <div class="field">
+                                                <label for="upload-folder">Target folder (optional)</label>
+                                                <input type="text" id="upload-folder" placeholder="resources" />
+                                            </div>
+                                            <div class="field">
+                                                <label for="upload-files">Files</label>
+                                                <input type="file" id="upload-files" multiple />
+                                            </div>
+                                            <p class="hint">Allowed: md, txt, yaml, json, tf, ps1, sh, py, sql, images,
+                                                pdf, drawio, zip, docx, pptx, xlsx.</p>
+                                            <div class="submit-row">
+                                                <button type="submit">Upload</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </details>
+                            </div>
+
+                            <div id="learning-cards" class="cards hidden">
+                                <div class="card-nav">
+                                    <button type="button" id="card-prev" class="secondary">Previous</button>
+                                    <span id="card-counter" class="muted">0 / 0</span>
+                                    <button type="button" id="card-next" class="secondary">Next</button>
+                                    <button type="button" id="card-shuffle">Shuffle</button>
+                                </div>
+                                <div id="card-body" class="card-body"></div>
+                            </div>
+
+                            <div id="search-results" class="search-results hidden"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View: Feature License Import -->
+            <section id="view-import" class="view">
+                <div class="page">
+                    <div class="page-head">
+                        <div>
+                            <p class="kicker">Aras Operations</p>
+                            <h2>Feature license operation</h2>
+                            <p class="page-sub">Import license keys into one or more Innovator instances, or validate
+                                the licenses already installed there.</p>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <form id="import-form">
+                            <fieldset class="options">
+                                <legend>Run mode</legend>
+
+                                <label class="choice">
+                                    <input type="radio" name="import-mode" value="importMissing" checked />
+                                    <span class="choice-text">
+                                        <span class="choice-title">Import missing licenses</span>
+                                        <span class="choice-sub">Writes only what is absent or expired, then validates</span>
+                                    </span>
+                                </label>
+
+                                <label class="choice">
+                                    <input type="radio" name="import-mode" value="reimportAll" />
+                                    <span class="choice-text">
+                                        <span class="choice-title">Re-import all licenses</span>
+                                        <span class="choice-sub">Overwrites every key in the file, including ones already present</span>
+                                    </span>
+                                </label>
+
+                                <label class="choice">
+                                    <input type="radio" name="import-mode" value="validateOnly" />
+                                    <span class="choice-text">
+                                        <span class="choice-title">Validate only</span>
+                                        <span class="choice-sub">Reads the licenses already on the instance and consumes each one; no file needed</span>
+                                    </span>
+                                </label>
+
+                                <label class="choice">
+                                    <input type="radio" name="import-mode" value="updateFeatureTree" />
+                                    <span class="choice-text">
+                                        <span class="choice-title">Update feature tree + validate</span>
+                                        <span class="choice-sub">Runs the Licenses &gt; Update Feature Tree command, then validates; no file needed</span>
+                                    </span>
+                                </label>
+
+                                <label class="choice">
+                                    <input type="radio" name="import-mode" value="dryRun" />
+                                    <span class="choice-text">
+                                        <span class="choice-title">Dry run</span>
+                                        <span class="choice-sub">Reports what would change without touching the instance</span>
+                                    </span>
+                                </label>
+
+                                <p class="hint" id="import-mode-note"></p>
+                            </fieldset>
+
+                            <div class="row" id="import-source">
+                                <div class="field">
+                                    <label for="import-file">License JSON file</label>
+                                    <input type="file" id="import-file" accept=".json,application/json" required />
+                                </div>
+
+                                <div class="field">
+                                    <label for="import-variant">License variant</label>
+                                    <select id="import-variant">
+                                        <option value="auto">auto (build_ci for localhost, azure otherwise)</option>
+                                        <option value="key_value_azure">key_value_azure</option>
+                                        <option value="key_value_build_ci">key_value_build_ci</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="field">
+                                <label for="import-urls">Innovator URLs (one per line)</label>
+                                <textarea id="import-urls" rows="4"
+                                    placeholder="https://customer-sit.example.com/InnovatorServer" required></textarea>
+                            </div>
+
+                            <div class="row">
+                                <div class="field">
+                                    <label for="import-username">Admin user</label>
+                                    <input type="text" id="import-username" autocomplete="username" required />
+                                </div>
+                                <div class="field">
+                                    <label for="import-password">Password</label>
+                                    <input type="password" id="import-password" autocomplete="current-password"
+                                        required />
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="field">
+                                    <label for="import-database">Database (optional, single instance only)</label>
+                                    <input type="text" id="import-database" />
+                                </div>
+                                <div class="field" id="import-names-field">
+                                    <label for="import-names">Only these key names (optional, comma separated)</label>
+                                    <input type="text" id="import-names" />
+                                </div>
+                            </div>
+
+                            <fieldset class="options">
+                                <legend>Connection</legend>
+                                <label class="inline-check"><input type="checkbox" id="import-validate" checked /> Run
+                                    license validation</label>
+                                <label class="inline-check"><input type="checkbox" id="import-skip-cert" /> Ignore TLS
+                                    certificate errors</label>
+                                <label class="inline-check"><input type="checkbox" id="import-no-hash" /> Send the raw
+                                    password (no MD5 hash)</label>
+                            </fieldset>
+
+                            <div class="submit-row">
+                                <button type="submit" id="import-submit">Run import</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="import-results" class="results"></div>
+                </div>
+            </section>
+
+            <!-- View: Key Vault -->
+            <section id="view-vault" class="view">
+                <div class="page">
+                    <div class="page-head">
+                        <div>
+                            <p class="kicker">Aras Operations</p>
+                            <h2>Add / update Key Vault secrets</h2>
+                            <p class="page-sub">Preview or write license secrets into a Build or Core Key Vault using
+                                your current Azure credential.</p>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <form id="vault-form">
+                            <div class="field">
+                                <label for="vault-file">License JSON file</label>
+                                <input type="file" id="vault-file" accept=".json,application/json" required />
+                            </div>
+
+                            <div class="row">
+                                <div class="field">
+                                    <label for="vault-name">Key Vault name (Build or Core)</label>
+                                    <input type="text" id="vault-name" placeholder="myinfra-dev-core" required />
+                                </div>
+                                <div class="field">
+                                    <label for="vault-variant">License variant</label>
+                                    <select id="vault-variant">
+                                        <option value="key_value_azure">key_value_azure (Core)</option>
+                                        <option value="key_value_build_ci">key_value_build_ci (Build)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="field">
+                                <label for="vault-names">Only these key names (optional, comma separated)</label>
+                                <input type="text" id="vault-names" />
+                            </div>
+
+                            <fieldset class="options">
+                                <legend>Options</legend>
+                                <label><input type="checkbox" id="vault-framework" checked /> Also write
+                                    <code>framework_licenses</code> entries</label>
+                                <label><input type="checkbox" id="vault-whatif" checked /> Preview only (do not write
+                                    secrets)</label>
+                            </fieldset>
+
+                            <p class="hint">Authentication uses <code>DefaultAzureCredential</code>: run
+                                <code>az login</code> or use a managed identity with <em>Key Vault Secrets Officer</em>
+                                on the vault.</p>
+
+                            <div class="submit-row">
+                                <button type="submit" id="vault-submit">Update Key Vault</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="vault-results" class="results"></div>
+                </div>
+            </section>
+
+            <!-- View: Repositories -->
+            <section id="view-terminal" class="view">
+                <div class="page page-wide">
+                    <div class="page-head">
+                        <div>
+                            <p class="kicker">Aras Operations</p>
+                            <h2>PowerShell</h2>
+                            <p class="page-sub">A persistent shell on the machine running SRE Hub. Variables, the
+                                current folder and <code>az login</code> carry over between commands. Press Enter to
+                                run, Shift+Enter for a new line, Up/Down for history, Ctrl+C to stop.</p>
+                        </div>
+                        <div class="term-head-actions">
+                            <span id="terminal-shell" class="term-shell">-</span>
+                            <span id="terminal-status" class="badge muted">Idle</span>
+                            <button type="button" id="terminal-clear" class="link-button">Clear</button>
+                            <button type="button" id="terminal-restart" class="link-button">New session</button>
+                        </div>
+                    </div>
+
+                    <div id="terminal-error"></div>
+
+                    <div class="term">
+                        <div id="terminal-output" class="term-output" role="log" aria-live="off"
+                            aria-label="PowerShell output"></div>
+
+                        <form id="terminal-form" class="term-input-row" autocomplete="off">
+                            <span id="terminal-prompt" class="term-prompt">PS&gt;</span>
+                            <textarea id="terminal-input" class="term-input" rows="1" spellcheck="false"
+                                autocapitalize="off" aria-label="PowerShell command"
+                                placeholder="az keyvault secret show --vault-name my-vault --name my-secret"></textarea>
+                            <button type="submit" id="terminal-run">Run</button>
+                            <button type="button" id="terminal-stop" class="secondary">Stop</button>
+                        </form>
+                    </div>
+
+                    <p class="hint">Commands run with the permissions of the account hosting SRE Hub and are
+                        recorded in an audit log. Interactive prompts are not supported; pass parameters explicitly.</p>
+                </div>
+            </section>
+
+            <!-- View: Repositories -->
+            <section id="view-repositories" class="view">
+                <div class="page">
+                    <div class="page-head">
+                        <div>
+                            <p class="kicker">Other</p>
+                            <h2>Repositories</h2>
+                            <p class="page-sub">Clone a repository into your workspace folder, then open it in VS Code,
+                                keep it up to date and switch branches.</p>
+                        </div>
+                        <button type="button" id="repo-refresh" class="link-button">Refresh</button>
+                    </div>
+
+                    <div class="panel">
+                        <form id="repo-form">
+                            <div class="field">
+                                <label for="repo-url">Git URL</label>
+                                <input type="text" id="repo-url" required
+                                    placeholder="https://dev.azure.com/org/project/_git/repo or git@host:org/repo.git" />
+                            </div>
+
+                            <div class="row">
+                                <div class="field">
+                                    <label for="repo-name">Folder name (optional)</label>
+                                    <input type="text" id="repo-name" placeholder="Defaults to the repository name" />
+                                </div>
+                                <div class="field">
+                                    <label for="repo-branch">Branch (optional)</label>
+                                    <input type="text" id="repo-branch" placeholder="Defaults to the remote default" />
+                                </div>
+                            </div>
+
+                            <p class="hint">Cloned into <code id="repo-root">-</code>. Authentication uses your Git
+                                credential manager or SSH key; do not paste tokens into the URL.</p>
+
+                            <div class="submit-row">
+                                <button type="submit" id="repo-submit">Clone repository</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="repo-clone-result" class="results"></div>
+                    <div id="repo-list" class="repo-list"></div>
+                </div>
+            </section>
+
+            <!-- View: Important links -->
+            <section id="view-links" class="view">
+                <div class="page">
+                    <div class="page-head">
+                        <div>
+                            <p class="kicker">Other</p>
+                            <h2>Important links</h2>
+                            <p class="page-sub">Keep the sites you use every day one click away. Links open in a new tab.</p>
+                        </div>
+                        <input type="search" id="link-filter" class="link-filter" placeholder="Search links" aria-label="Search links" />
+                    </div>
+
+                    <div class="panel">
+                        <form id="link-form">
+                            <h3 id="link-form-title">Add a link</h3>
+
+                            <div class="row">
+                                <div class="field">
+                                    <label for="link-title">Title</label>
+                                    <input type="text" id="link-title" maxlength="100" required placeholder="Azure Portal" />
+                                </div>
+                                <div class="field">
+                                    <label for="link-url">URL</label>
+                                    <input type="url" id="link-url" maxlength="2000" required placeholder="https://portal.azure.com" />
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="field">
+                                    <label for="link-category">Group</label>
+                                    <select id="link-category"></select>
+                                </div>
+                                <div class="field">
+                                    <label for="link-description">Description (optional)</label>
+                                    <input type="text" id="link-description" maxlength="300" />
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="field">
+                                    <label for="link-username">Username (optional)</label>
+                                    <input type="text" id="link-username" maxlength="200" autocomplete="off"
+                                        spellcheck="false" placeholder="you@company.com" />
+                                </div>
+                                <div class="field">
+                                    <label for="link-password">Password (optional)</label>
+                                    <div class="secret-input">
+                                        <input type="password" id="link-password" maxlength="500"
+                                            autocomplete="new-password" spellcheck="false" />
+                                        <button type="button" id="link-password-toggle" class="link-button"
+                                            aria-label="Show password">Show</button>
+                                    </div>
+                                    <label id="link-clear-password-row" class="inline-check hidden"><input
+                                            type="checkbox" id="link-clear-password" /> Remove the saved password</label>
+                                </div>
+                            </div>
+
+                            <p class="hint">Passwords are encrypted before they are saved and are only decrypted when
+                                you press Copy or Show on a card. On this machine they are bound to the Windows
+                                account running SRE Hub.</p>
+
+                            <div id="link-form-error"></div>
+
+                            <div class="submit-row">
+                                <button type="submit" id="link-submit">Add link</button>
+                                <button type="button" id="link-cancel" class="secondary hidden">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="link-list" class="link-list"></div>
+                </div>
+            </section>
+
+            <!-- View: Important files -->
+            <section id="view-files" class="view">
+                <div class="page page-wide">
+                    <div class="page-head">
+                        <div>
+                            <p class="kicker">Other</p>
+                            <h2>Important files</h2>
+                            <p class="page-sub">Keep the documents you refer to often. PDF, Word and PowerPoint open for viewing; Excel workbooks can also be edited and saved.</p>
+                        </div>
+                        <input type="search" id="files-filter" class="link-filter" placeholder="Search files" aria-label="Search files" />
+                    </div>
+
+                    <div class="files-layout">
+                        <aside class="panel files-side">
+                            <label class="files-upload" for="files-input">
+                                <input type="file" id="files-input" multiple
+                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.ppt,.pptx" />
+                                <span>Upload files</span>
+                            </label>
+                            <div id="files-status" class="hint" role="status"></div>
+                            <div id="files-list" class="files-list"></div>
+                        </aside>
+
+                        <div id="files-viewer" class="panel files-viewer">
+                            <p class="hint">Select a file to open it here.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View: Micro-mgmt work observation log -->
+            <section id="view-worklog" class="view">
+                <div class="page page-wide wl">
+                    <header class="wl-banner">
+                        <div>
+                            <h2>Personal Attendance & WFH Log <span id="worklog-range"></span></h2>
+                            <p>Daily attendance and work observation log. Update each row at the end of the day.</p>
+                        </div>
+
+                        <div class="wl-banner-actions">
+                            <div class="wl-year-stepper" role="group" aria-label="Year">
+                                <button type="button" id="worklog-prev-year" aria-label="Previous year">&lsaquo;</button>
+                                <input type="number" id="worklog-year" min="2000" max="2100" aria-label="Year" />
+                                <button type="button" id="worklog-next-year" aria-label="Next year">&rsaquo;</button>
+                            </div>
+                            <button type="button" id="worklog-mark-weekends" class="link-button"
+                                title="Set every empty Saturday and Sunday of the year to Weekend">Fill weekends</button>
+                            <a id="worklog-export-year" class="link-button" href="#" download>Export CSV</a>
+                        </div>
+                    </header>
+
+                    <div class="wl-layout">
+                        <div class="wl-main">
+                            <details class="wl-card wl-bulk" id="worklog-bulk">
+                                <summary>
+                                    <span class="wl-bulk-icon" aria-hidden="true">&#9998;</span>
+                                    <span class="wl-bulk-title">
+                                        <b>Quick Fill</b>
+                                        <small>Update the log for several days in one go</small>
+                                    </span>
+                                    <span class="wl-bulk-chevron" aria-hidden="true"></span>
+                                </summary>
+                                <form id="worklog-bulk-form" class="wl-bulk-form" autocomplete="off">
+                                    <fieldset class="wl-bulk-section">
+                                        <legend>Period</legend>
+                                        <div class="row">
+                                            <div class="field">
+                                                <label for="bulk-from">From</label>
+                                                <input type="date" id="bulk-from" required />
+                                            </div>
+                                            <div class="field">
+                                                <label for="bulk-to">To</label>
+                                                <input type="date" id="bulk-to" required />
+                                            </div>
+                                        </div>
+                                    </fieldset>
+
+                                    <fieldset class="wl-bulk-section">
+                                        <legend>Status</legend>
+                                        <div class="row">
+                                            <div class="field">
+                                                <label for="bulk-attendance">Attendance status</label>
+                                                <select id="bulk-attendance" required></select>
+                                            </div>
+                                            <div class="field">
+                                                <label for="bulk-emergency">Emergency leave</label>
+                                                <select id="bulk-emergency"></select>
+                                            </div>
+                                            <div class="field">
+                                                <label for="bulk-network">Network / power status</label>
+                                                <select id="bulk-network"></select>
+                                            </div>
+                                            <div class="field">
+                                                <label for="bulk-escalation">Escalation</label>
+                                                <input type="text" id="bulk-escalation" maxlength="500" data-list="worklog-escalation-options" />
+                                            </div>
+                                        </div>
+                                    </fieldset>
+
+                                    <fieldset class="wl-bulk-section">
+                                        <legend>Details</legend>
+                                        <div class="row">
+                                            <div class="field">
+                                                <label for="bulk-summary">Daily work summary</label>
+                                                <input type="text" id="bulk-summary" maxlength="500" placeholder="Blank uses the default for the chosen attendance" />
+                                            </div>
+                                            <div class="field">
+                                                <label for="bulk-note">Note</label>
+                                                <input type="text" id="bulk-note" maxlength="500" placeholder="Optional" />
+                                            </div>
+                                        </div>
+                                    </fieldset>
+
+                                    <footer class="wl-bulk-footer">
+                                        <div class="wl-bulk-options">
+                                            <label class="wl-check"><input type="checkbox" id="bulk-skip-weekends" checked />Skip Saturdays and Sundays</label>
+                                            <label class="wl-check"><input type="checkbox" id="bulk-overwrite" checked />Overwrite existing values</label>
+                                        </div>
+                                        <div class="wl-bulk-submit">
+                                            <span id="bulk-status" class="wl-bulk-status" role="status"></span>
+                                            <button type="submit" id="bulk-apply">Apply to range</button>
+                                        </div>
+                                    </footer>
+                                </form>
+                            </details>
+                            <div id="worklog-month-tabs" class="wl-month-tabs" role="group" aria-label="Month"></div>
+                            <div id="worklog-table-host" class="worklog-table-host"></div>
+                        </div>
+
+                        <aside class="wl-side">
+                            <section class="wl-card">
+                                <div class="wl-card-head">
+                                    <h3>Monthly Attendance Summary</h3>
+                                    <select id="worklog-month-select" aria-label="Month"></select>
+                                </div>
+
+                                <table class="wl-summary-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Attendance Category</th>
+                                            <th>Days Recorded</th>
+                                            <th>Percentage</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="worklog-summary-body"></tbody>
+                                </table>
+
+                                <ul class="wl-legend" aria-label="Row colours">
+                                    <li><i class="dot sat"></i>Saturday</li>
+                                    <li><i class="dot sun"></i>Sunday</li>
+                                    <li><i class="dot today"></i>Today</li>
+                                </ul>
+                            </section>
+
+                            <section class="wl-card">
+                                <h3>Monthly Attendance Distribution</h3>
+                                <div id="worklog-pie" class="wl-pie"></div>
+                            </section>
+                        </aside>
+                    </div>
+
+                    <datalist id="worklog-escalation-options">
+                        <option value="No"></option>
+                        <option value="Minor"></option>
+                        <option value="Major"></option>
+                        <option value="N/A"></option>
+                    </datalist>
+                </div>
+            </section>
+            <!-- View: Secure files -->
+            <section id="view-secure" class="view">
+                <div class="page page-wide wl secure">
+                    <header class="wl-banner">
+                        <div>
+                            <h2>Secure Files</h2>
+                            <p>Project credentials and cluster configs, encrypted on this machine and organised in folders.</p>
+                        </div>
+
+                        <div class="wl-banner-actions" id="secure-tabs"></div>
+                    </header>
+
+                    <div id="secure-alert" class="duty-reminder" role="status" hidden></div>
+                    <div id="secure-status" class="wl-bulk-status duty-status" role="status"></div>
+
+                    <div class="secure-layout">
+                        <aside class="wl-card secure-sidebar">
+                            <div class="wl-card-head">
+                                <h3>Projects</h3>
+                            </div>
+                            <div id="secure-tree"></div>
+                        </aside>
+
+                        <section class="wl-card secure-content" id="secure-content"></section>
+                    </div>
+
+                    <input type="file" id="secure-upload-input" multiple hidden />
+                    <input type="file" id="secure-version-input" hidden />
+                </div>
+            </section>
+
+            <!-- View: Personal vault -->
+            <section id="view-personal" class="view">
+                <div class="page page-wide wl secure">
+                    <header class="wl-banner">
+                        <div>
+                            <h2>Personal Vault</h2>
+                            <p>Your own documents, IDs, finance, fitness plans and credentials, encrypted on this machine and organised in folders.</p>
+                        </div>
+
+                        <div class="wl-banner-actions" id="personal-tabs"></div>
+                    </header>
+
+                    <div id="personal-alert" class="duty-reminder" role="status" hidden></div>
+                    <div id="personal-status" class="wl-bulk-status duty-status" role="status"></div>
+
+                    <div class="secure-layout">
+                        <aside class="wl-card secure-sidebar">
+                            <div class="wl-card-head">
+                                <h3>Folders</h3>
+                            </div>
+                            <div id="personal-tree"></div>
+                        </aside>
+
+                        <section class="wl-card secure-content" id="personal-content"></section>
+                    </div>
+
+                    <input type="file" id="personal-upload-input" multiple hidden />
+                    <input type="file" id="personal-version-input" hidden />
+                </div>
+            </section>            <!-- View: DO shift and OneNote update log -->
+            <section id="view-duty" class="view">
+                <div class="page page-wide wl">
+                    <header class="wl-banner">
+                        <div>
+                            <h2>DO Roster, Shift &amp; OneNote Log <span id="duty-range"></span></h2>
+                            <p>See who is DO each week, and manage your own DO days and OneNote updates.</p>
+                        </div>
+
+                        <div class="wl-banner-actions">
+                            <select id="duty-quarter" class="duty-quarter" aria-label="Quarter"></select>
+                            <button type="button" id="duty-import" class="link-button"
+                                title="Read the quarter grid from your Monitoring Log sheet">Import roster from Excel</button>
+                            <input type="file" id="duty-import-file" accept=".xlsx,.xlsm,.xls" hidden />
+                            <a id="duty-export" class="link-button" href="#" download>Export DO CSV</a>
+                            <a id="duty-export-onenote" class="link-button" href="#" download>Export OneNote CSV</a>
+                        </div>
+                    </header>
+
+                    <div id="duty-reminder" class="duty-reminder" role="status" hidden>
+                        <span id="duty-reminder-text"></span>
+                        <button type="button" id="duty-reminder-jump" class="link-button">Show missing days</button>
+                    </div>
+                    <div id="duty-status" class="wl-bulk-status duty-status" role="status"></div>
+
+                    <section class="wl-card">
+                        <div class="wl-card-head">
+                            <div>
+                                <h3>Quarter Roster</h3>
+                                <p class="duty-sub">Who is DO each week. Your own weeks are highlighted.</p>
+                            </div>
+                            <div class="duty-head-actions">
+                                <button type="button" id="duty-undo" class="link-button" disabled title="Undo the last roster or OneNote change">Undo last change</button>
+                                <label class="wl-check"><input type="checkbox" id="duty-only-mine" />Only my days</label>
+                            </div>
+                        </div>
+                        <div id="duty-roster-host" class="worklog-table-host duty-roster-host"></div>
+                    </section>
+
+                    <details class="wl-card wl-bulk" id="duty-tools">
+                        <summary>
+                            <span class="wl-bulk-icon" aria-hidden="true">&#9998;</span>
+                            <span class="wl-bulk-title">
+                                <b>Quick Fill &amp; Import</b>
+                                <small>Adjust the DO and OneNote rosters, or paste the sheet from Excel</small>
+                            </span>
+                            <span class="wl-bulk-chevron" aria-hidden="true"></span>
+                        </summary>
+                        <div class="wl-bulk-form">
+                            <fieldset class="wl-bulk-section">
+                                <legend>Edit roster for a period (add, swap or postpone a week)</legend>
+                                <div class="row">
+                                    <div class="field">
+                                        <label for="duty-roster-from">From</label>
+                                        <input type="date" id="duty-roster-from" />
+                                    </div>
+                                    <div class="field">
+                                        <label for="duty-roster-to">To</label>
+                                        <input type="date" id="duty-roster-to" />
+                                    </div>
+                                    <div class="field">
+                                        <label for="duty-roster-label">Week label (optional)</label>
+                                        <input type="text" id="duty-roster-label" maxlength="100" placeholder="Week 5 (M-F)" />
+                                    </div>
+                                    <div class="field">
+                                        <label for="duty-roster-japan">Japan shift DO</label>
+                                        <input type="text" id="duty-roster-japan" maxlength="50" placeholder="DO3" />
+                                    </div>
+                                    <div class="field">
+                                        <label for="duty-roster-india">India shift DO</label>
+                                        <input type="text" id="duty-roster-india" maxlength="50" placeholder="DO3" />
+                                    </div>
+                                </div>
+                                <div class="wl-bulk-submit">
+                                    <button type="button" id="duty-roster-apply">Apply to roster</button>
+                                    <button type="button" id="duty-roster-clear" class="link-button">Clear period</button>
+                                </div>
+                            </fieldset>
+
+                            <fieldset class="wl-bulk-section">
+                                <legend>Generate the OneNote rotation (IT1 to IT8 in turn)</legend>
+                                <div class="row">
+                                    <div class="field">
+                                        <label for="duty-rot-start">First iteration starts</label>
+                                        <input type="date" id="duty-rot-start" />
+                                    </div>
+                                    <div class="field">
+                                        <label for="duty-rot-days">Days per iteration</label>
+                                        <input type="number" id="duty-rot-days" min="1" max="60" value="14" />
+                                    </div>
+                                    <div class="field">
+                                        <label for="duty-rot-count">Number of iterations</label>
+                                        <input type="number" id="duty-rot-count" min="1" max="60" value="7" />
+                                    </div>
+                                    <div class="field">
+                                        <label for="duty-rot-first">First owner</label>
+                                        <input type="text" id="duty-rot-first" maxlength="50" placeholder="IT1" />
+                                    </div>
+                                </div>
+                                <div class="wl-bulk-submit">
+                                    <button type="button" id="duty-rot-apply">Generate rotation</button>
+                                </div>
+                            </fieldset>
+
+                            <fieldset class="wl-bulk-section">
+                                <legend>Paste from Excel</legend>
+                                <p class="wl-bulk-status">In Excel, select the grid from the first "Week" header down to the India shift row, copy it, and paste it here.</p>
+                                <textarea id="duty-paste" rows="6" placeholder="Paste copied cells here"></textarea>
+                                <div class="wl-bulk-submit">
+                                    <button type="button" id="duty-paste-apply">Read pasted roster</button>
+                                </div>
+                            </fieldset>
+
+                            <fieldset class="wl-bulk-section">
+                                <legend>My IDs and names (set once)</legend>
+                                <div class="row">
+                                    <div class="field">
+                                        <label for="duty-my-id">My DO ID</label>
+                                        <input type="text" id="duty-my-id" maxlength="20" placeholder="DO3" />
+                                    </div>
+                                    <div class="field">
+                                        <label for="duty-my-it">My OneNote ID</label>
+                                        <input type="text" id="duty-my-it" maxlength="20" placeholder="IT7" />
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label for="duty-names">Names (one per line, e.g. DO3 = Rameshwar, IT7 = Ramesh)</label>
+                                    <textarea id="duty-names" rows="6" maxlength="2000"></textarea>
+                                </div>
+                            </fieldset>
+                        </div>
+                    </details>
+
+                    <div class="wl-layout">
+                        <div class="wl-main">
+                            <details class="wl-card duty-collapse" id="duty-do-panel">
+                                <summary>
+                                    <h3>My DO Shift</h3>
+                                    <span class="duty-count" id="duty-do-count"></span>
+                                </summary>
+                                <div id="duty-do-host" class="worklog-table-host"></div>
+                            </details>
+
+                            <details class="wl-card duty-collapse" id="duty-onenote-panel">
+                                <summary>
+                                    <h3>OneNote Update (IT rotation)</h3>
+                                    <span class="duty-count" id="duty-onenote-count"></span>
+                                </summary>
+                                <label class="wl-check duty-panel-filter"><input type="checkbox" id="duty-only-mine-it" />Only my iterations</label>
+                                <div id="duty-onenote-host" class="worklog-table-host"></div>
+                            </details>
+
+                            <section class="wl-card duty-overview" id="duty-overview">
+                                <div class="wl-card-head">
+                                    <h3>Quarter Overview</h3>
+                                    <span id="duty-overview-period"></span>
+                                </div>
+                                <div class="duty-overview-body">
+                                    <div id="duty-overview-pie" class="wl-pie duty-overview-pie"></div>
+                                    <div id="duty-overview-legend" class="duty-overview-legend"></div>
+                                </div>
+                            </section>
+                        </div>
+
+                        <aside class="wl-side">
+                            <section class="wl-card">
+                                <div class="wl-card-head">
+                                    <h3>Monthly Summary</h3>
+                                    <span id="duty-summary-period"></span>
+                                </div>
+                                <p id="duty-next" class="wl-bulk-status"></p>
+
+                                <table class="wl-summary-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Category</th>
+                                            <th>Days</th>
+                                            <th>Duties</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="duty-summary-body"></tbody>
+                                </table>
+
+                                <ul class="wl-legend" aria-label="Row colours">
+                                    <li><i class="dot mine"></i>My DO days</li>
+                                    <li><i class="dot today"></i>Today</li>
+                                </ul>
+                            </section>
+                        </aside>
+                    </div>
+                </div>
+            </section>            <!-- View: Maths library -->
+            <section id="view-math-library" class="view">
+                <div class="page page-wide">
+                    <div class="page-head">
+                        <div>
+                            <p class="kicker">Mathematics</p>
+                            <h2>Maths library</h2>
+                            <p class="page-sub">Your teaching book in chapter order. Pick a topic, open a sheet in class
+                                view (PDF with your notes beside it) and mark what you have prepared and taught.</p>
+                            <p id="maths-summary" class="hint"></p>
+                        </div>
+                        <input type="search" id="maths-filter" class="link-filter" placeholder="Search topics and sheets"
+                            aria-label="Search topics and sheets" />
+                    </div>
+
+                    <div class="maths-layout">
+                        <aside id="maths-toc" class="maths-toc" aria-label="Book contents"></aside>
+
+                        <div class="maths-main">
+                            <p id="maths-empty" class="hint">Select a topic from the contents to see its sheets and notes.</p>
+
+                            <div id="maths-topic" class="hidden">
+                                <header class="maths-topic-head">
+                                    <div>
+                                        <h3 id="maths-topic-title"></h3>
+                                        <div id="maths-topic-coverage" class="maths-coverage"></div>
+                                    </div>
+                                    <div class="maths-topic-actions">
+                                        <select id="maths-status" aria-label="Topic status"></select>
+                                        <button type="button" id="maths-prev" class="link-button">Previous</button>
+                                        <button type="button" id="maths-next" class="link-button">Next</button>
+                                    </div>
+                                </header>
+
+                                <div id="maths-materials" class="maths-materials"></div>
+
+                                <div id="maths-notes-home">
+                                    <section id="maths-notes-panel" class="panel maths-notes-panel">
+                                        <div class="maths-notes-head">
+                                            <h4>Class notes</h4>
+                                            <span id="maths-save-state" class="muted"></span>
+                                            <button type="button" id="maths-preview-toggle" class="link-button">Preview</button>
+                                            <button type="button" id="maths-open-book" class="link-button">View in book</button>
+                                            <button type="button" id="maths-template" class="link-button">Insert
+                                                template</button>
+                                        </div>
+                                        <textarea id="maths-notes" class="maths-notes" spellcheck="true"
+                                            placeholder="Focus points for the class: formulas, shortcuts, examples, common mistakes..."></textarea>
+                                        <div id="maths-preview" class="maths-preview hidden"></div>
+                                    </section>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View: Book notes -->
+            <section id="view-math-book" class="view">
+                <div class="page page-wide">
+                    <div class="page-head no-print">
+                        <div>
+                            <p class="kicker">Mathematics</p>
+                            <h2>Book notes</h2>
+                            <p class="page-sub">Your class notes compiled in chapter order. Choose the whole book, one part
+                                or one topic, then print it or save it as a PDF.</p>
+                        </div>
+                        <div class="book-controls">
+                            <select id="book-scope" aria-label="What to show"></select>
+                            <label class="inline-check"><input type="checkbox" id="book-only-notes" checked /> Only topics
+                                with notes</label>
+                            <label class="inline-check"><input type="checkbox" id="book-show-sheets" checked /> List
+                                sheets</label>
+                            <button type="button" id="book-refresh" class="link-button">Refresh</button>
+                            <button type="button" id="book-print">Print / save as PDF</button>
+                        </div>
+                    </div>
+
+                    <div id="book-host" class="book"></div>
+                </div>
+            </section>
+
+            <!-- View: Mathematics calculator -->
+            <section id="view-math-calc" class="view">
+                <div class="page">
+                    <div class="page-head">
+                        <div>
+                            <p class="kicker">Mathematics</p>
+                            <h2>Calculator</h2>
+                            <p class="page-sub">Type an expression and press Enter. Use <code>ans</code> for the previous
+                                result.</p>
+                        </div>
+                        <label class="inline-check"><input type="checkbox" id="calc-degrees" checked /> Trig functions
+                            in degrees</label>
+                    </div>
+
+                    <div class="panel">
+                        <form id="calc-form" autocomplete="off">
+                            <div class="field">
+                                <label for="calc-input">Expression</label>
+                                <input type="text" id="calc-input" spellcheck="false"
+                                    placeholder="sqrt(2) * (3 + 4)^2 / ans" />
+                            </div>
+                            <div id="calc-result" class="calc-result" aria-live="polite">0</div>
+                            <div id="calc-error"></div>
+                            <div class="submit-row">
+                                <button type="submit">Calculate</button>
+                                <button type="button" id="calc-clear" class="secondary">Clear</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="calc-history" class="calc-history"></div>
+
+                    <p class="hint">Operators: <code>+ - * / % ^ !</code> and parentheses. Constants:
+                        <code>pi e tau</code>. Functions: <code>sin cos tan asin acos atan sinh cosh tanh sqrt cbrt abs
+                            ln log log2 exp floor ceil round sign fact pow min max hypot deg rad</code>.</p>
+                </div>
+            </section>
+
+            <!-- View: SRE math -->
+            <section id="view-math-sre" class="view">
+                <div class="page">
+                    <div class="page-head">
+                        <div>
+                            <p class="kicker">Mathematics</p>
+                            <h2>SRE math</h2>
+                            <p class="page-sub">Quick reliability arithmetic: how much downtime an availability target
+                                allows, how much error budget is left, and unit conversions.</p>
+                        </div>
+                    </div>
+
+                    <div class="panel math-panel">
+                        <h3>Availability to downtime</h3>
+                        <div class="field">
+                            <label for="sre-availability">Availability target (%)</label>
+                            <input type="number" id="sre-availability" value="99.9" min="0" max="100" step="any" />
+                        </div>
+                        <div id="sre-availability-result" class="results"></div>
+                    </div>
+
+                    <div class="panel math-panel">
+                        <h3>Error budget</h3>
+                        <div class="row">
+                            <div class="field">
+                                <label for="budget-slo">SLO (%)</label>
+                                <input type="number" id="budget-slo" value="99.9" min="0" max="100" step="any" />
+                            </div>
+                            <div class="field">
+                                <label for="budget-days">Window (days)</label>
+                                <input type="number" id="budget-days" value="30" min="1" step="any" />
+                            </div>
+                            <div class="field">
+                                <label for="budget-used">Downtime used (minutes)</label>
+                                <input type="number" id="budget-used" value="0" min="0" step="any" />
+                            </div>
+                        </div>
+                        <div id="budget-result" class="results"></div>
+                    </div>
+
+                    <div class="panel math-panel">
+                        <h3>Unit converter</h3>
+                        <div class="row">
+                            <div class="field">
+                                <label for="convert-category">Type</label>
+                                <select id="convert-category">
+                                    <option value="data">Data size</option>
+                                    <option value="time">Time</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="convert-value">Value</label>
+                                <input type="number" id="convert-value" value="1" step="any" />
+                            </div>
+                            <div class="field">
+                                <label for="convert-from">From</label>
+                                <select id="convert-from"></select>
+                            </div>
+                            <div class="field">
+                                <label for="convert-to">To</label>
+                                <select id="convert-to"></select>
+                            </div>
+                        </div>
+                        <div id="convert-result" class="results"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        </div>
+    </div>
+
+    <div id="maths-class" class="maths-class hidden" role="dialog" aria-label="Class view">
+        <header class="maths-class-bar">
+            <strong id="maths-class-title"></strong>
+            <select id="maths-class-file" aria-label="Sheet"></select>
+            <a id="maths-class-newtab" class="link-button" href="#" target="_blank" rel="noopener noreferrer">New tab</a>
+            <button type="button" id="maths-class-notes-toggle" class="link-button">Hide notes</button>
+            <button type="button" id="maths-class-close" class="link-button">Close (Esc)</button>
+        </header>
+        <div class="maths-class-body">
+            <iframe id="maths-class-frame" class="maths-class-frame" title="Sheet"></iframe>
+            <aside id="maths-class-notes-slot" class="maths-class-notes"></aside>
+        </div>
+    </div>
+
+    <dialog id="about-dialog" class="about-dialog">
+        <div class="about-body">
+            <div class="brand">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12 3 4 7v5.5c0 4.4 3.3 7.8 8 8.5 4.7-.7 8-4.1 8-8.5V7z" />
+                        <path d="m9 12 2.2 2.2L15.5 10" />
+                    </svg>
+                </span>
+                <span class="brand-text">
+                    <strong>SRE Hub</strong>
+                    <small>Learning library and Aras operations tooling</small>
+                </span>
+            </div>
+
+            <dl>
+                <dt>Organization</dt>
+                <dd>Aras Corporation</dd>
+                <dt>Signed in as</dt>
+                <dd id="about-user">-</dd>
+                <dt>Content root</dt>
+                <dd id="about-root">-</dd>
+            </dl>
+
+            <div class="about-actions">
+                <button type="button" id="about-close">Close</button>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="action-dialog" class="about-dialog">
+        <form id="action-form" class="about-body">
+            <h3 id="action-title"></h3>
+            <p class="hint" id="action-hint"></p>
+            <div id="action-fields" class="action-fields"></div>
+            <p class="error hidden" id="action-error"></p>
+            <div class="about-actions">
+                <button type="button" id="action-cancel" class="secondary">Cancel</button>
+                <button type="submit" id="action-confirm">Confirm</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+
+</html>

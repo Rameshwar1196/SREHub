@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign in · SRE Hub</title>
+    <script>document.documentElement.dataset.theme = (function () { try { return localStorage.getItem('srehub.theme') || 'ocean'; } catch (e) { return 'ocean'; } })();</script>
+    <link rel="stylesheet" href="css/site.css" />
+</head>
+
+<body class="login-page">
+    <main class="login-card">
+        <div class="login-brand">
+            <span class="brand-mark" aria-hidden="true">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M12 3 4 7v5.5c0 4.4 3.3 7.8 8 8.5 4.7-.7 8-4.1 8-8.5V7z" />
+                    <path d="m9 12 2.2 2.2L15.5 10" />
+                </svg>
+            </span>
+            <h1>SRE Hub</h1>
+            <p>Learning library and Aras operations tooling</p>
+        </div>
+
+        <form id="login-form" autocomplete="on">
+            <div class="field">
+                <label for="login-email">Email</label>
+                <input type="email" id="login-email" name="email" autocomplete="username"
+                    placeholder="you@example.com" required autofocus />
+            </div>
+
+            <div class="field">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" name="password" autocomplete="current-password"
+                    placeholder="••••••••••••" required />
+            </div>
+
+            <div id="login-error" class="hidden"></div>
+
+            <button type="submit" id="login-submit">Sign in</button>
+        </form>
+
+        <div class="login-foot">
+            <p class="hint">Local account. On first run the generated administrator password is printed
+                to the console that started the app.</p>
+        </div>
+    </main>
+
+    <script type="module" src="js/login.js"></script>
+</body>
+
+</html>

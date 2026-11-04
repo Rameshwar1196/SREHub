@@ -1,0 +1,10 @@
+bin/
+obj/
+node_modules/
+wwwroot/js/
+learning-content/.sre-hub/
+App_Data/
+repos/
+
+# Employer-confidential knowledgebase copy - never commit.
+learning-content/14-work-journal/kb/

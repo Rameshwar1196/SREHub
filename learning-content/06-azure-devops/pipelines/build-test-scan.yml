@@ -1,0 +1,118 @@
+
+# Build, test, scan and publish a container image to ACR.
+# Demonstrates: caching, coverage gates, SCA, container scanning, immutable tagging.
+
+trigger:
+  branches: { include: [main] }
+  paths: { exclude: ['docs/*', '*.md'] }
+
+pr:
+  branches: { include: [main] }
+
+variables:
+  - group: build-common            # non-secret shared values
+  - name: imageName
+    value: 'web'
+  - name: acrName
+    value: 'myregistry'
+  - name: tag
+    value: '$(Build.SourceVersion)'   # immutable: commit SHA, never "latest"
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Build
+    displayName: Build and test
+    jobs:
+      - job: build
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: Cache@2
+            displayName: Cache NuGet packages
+            inputs:
+              key: 'nuget | "$(Agent.OS)" | **/packages.lock.json'
+              restoreKeys: 'nuget | "$(Agent.OS)"'
+              path: $(NUGET_PACKAGES)
+
+          - task: DotNetCoreCLI@2
+            displayName: Restore
+            inputs:
+              command: restore
+              projects: '**/*.csproj'
+
+          - task: DotNetCoreCLI@2
+            displayName: Build
+            inputs:
+              command: build
+              arguments: '--configuration Release --no-restore'
+
+          - task: DotNetCoreCLI@2
+            displayName: Unit tests
+            inputs:
+              command: test
+              arguments: >-
+                --configuration Release --no-build
+                --collect:"XPlat Code Coverage"
+                --logger trx
+                --blame-hang-timeout 5m
+
+          - task: PublishCodeCoverageResults@2
+            inputs:
+              summaryFileLocation: '$(Agent.TempDirectory)/**/coverage.cobertura.xml'
+              failIfCoverageEmpty: true
+
+          - task: BuildQualityChecks@9
+            displayName: Enforce coverage threshold
+            inputs:
+              checkCoverage: true
+              coverageFailOption: fixed
+              coverageType: lines
+              coverageThreshold: 80
+
+  - stage: Package
+    displayName: Containerise and scan
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - job: image
+        steps:
+          - task: Docker@2
+            displayName: Build image
+            inputs:
+              command: build
+              repository: $(imageName)
+              dockerfile: 'src/Dockerfile'
+              tags: |
+                $(tag)
+
+          - script: |
+              set -euo pipefail
+              curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+                | sh -s -- -b /usr/local/bin
+              trivy image --exit-code 1 --severity HIGH,CRITICAL \
+                --ignore-unfixed --format table "$(imageName):$(tag)"
+            displayName: Trivy container scan (fail on HIGH/CRITICAL)
+
+          - task: Docker@2
+            displayName: Push to ACR
+            condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+            inputs:
+              containerRegistry: 'acr-service-connection'
+              repository: $(imageName)
+              command: push
+              tags: |
+                $(tag)
+
+          - script: |
+              set -euo pipefail
+              digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$(acrName).azurecr.io/$(imageName):$(tag)")
+              echo "##vso[task.setvariable variable=imageDigest;isOutput=true]$digest"
+            name: digest
+            displayName: Capture immutable digest
+
+          - publish: 'deploy'
+            artifact: manifests
+            displayName: Publish K8s manifests as an artifact
