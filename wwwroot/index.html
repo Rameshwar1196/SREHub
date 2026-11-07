@@ -111,6 +111,15 @@
                                 <span class="nav-sub">Encrypted project credentials and configs</span>
                             </span>
                         </button>
+
+                        <button type="button" class="nav-button" data-target="view-tracker"
+                            title="Work Completion tracker">
+                            <span class="nav-index">5</span>
+                            <span class="nav-text">
+                                <span class="nav-title">Work completion tracker</span>
+                                <span class="nav-sub">Tickets, stories and KB updates by quarter</span>
+                            </span>
+                        </button>
                     </div>
                 </section>
 
@@ -733,6 +742,39 @@
                 </div>
             </section>
 
+            <!-- View: Work Completion tracker -->
+            <section id="view-tracker" class="view">
+                <div class="page">
+                    <div class="page-head">
+                        <div>
+                            <p class="kicker">Aras Operations</p>
+                            <h2>Work completion tracker</h2>
+                            <p class="page-sub">Keep track of tickets, stories and KB updates by quarter and iteration.</p>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="tracker-toolbar">
+                            <select id="tracker-period" aria-label="Quarter"></select>
+                            <select id="tracker-kind" aria-label="Type">
+                                <option value="all">All types</option>
+                                <option value="Ticket">Tickets / stories</option>
+                                <option value="KB">KB / notes</option>
+                            </select>
+                            <input type="search" id="tracker-search" placeholder="Search" aria-label="Search" />
+                            <div class="secure-actions">
+                                <button type="button" id="tracker-add">Add entry</button>
+                                <button type="button" id="tracker-import" class="secondary">Import Excel</button>
+                                <button type="button" id="tracker-export" class="secondary">Export Excel</button>
+                            </div>
+                            <input type="file" id="tracker-import-input" accept=".xlsx,.xlsm,.xls" hidden />
+                        </div>
+                        <p id="tracker-message" class="secure-status" role="status"></p>
+                        <div id="tracker-list"></div>
+                    </div>
+                </div>
+            </section>
+
             <!-- View: Important links -->
             <section id="view-links" class="view">
                 <div class="page">
@@ -842,7 +884,7 @@
                 <div class="page page-wide wl">
                     <header class="wl-banner">
                         <div>
-                            <h2>Personal Attendance & WFH Log <span id="worklog-range"></span></h2>
+                            <h2>Personal Attendance <span id="worklog-range"></span></h2>
                             <p>Daily attendance and work observation log. Update each row at the end of the day.</p>
                         </div>
 

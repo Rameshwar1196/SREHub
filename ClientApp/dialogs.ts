@@ -78,6 +78,9 @@ export interface FormField {
     optionsFor?: (parentValue: string) => Array<{ value: string; label: string }>;
     required?: boolean;
     maxLength?: number;
+    rows?: number;
+    // Keeps the value exactly as typed instead of trimming it.
+    raw?: boolean;
 }
 
 // Several labelled fields in one dialog; resolves to the trimmed values by field name, or null when cancelled.
@@ -106,7 +109,7 @@ export function askForm(
                 control = select;
             } else if (item.kind === 'textarea') {
                 const area = el('textarea');
-                area.rows = 4;
+                area.rows = item.rows ?? 4;
                 area.value = item.value;
                 control = area;
             } else {
@@ -145,7 +148,8 @@ export function askForm(
             const values: Record<string, string> = {};
 
             for (const item of fields) {
-                const value = controls.get(item.name)!.value.trim();
+                const rawValue = controls.get(item.name)!.value;
+                const value = item.raw ? rawValue : rawValue.trim();
 
                 if (item.required && value.length === 0) {
                     throw new Error(`${item.label} is required.`);

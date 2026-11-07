@@ -294,6 +294,43 @@ export async function saveDutyRoster(roster: DutyRoster): Promise<DutyRoster> {
     }));
 }
 
+export interface TrackedItem {
+    id: string;
+    kind: 'Ticket' | 'KB';
+    title: string;
+    url: string;
+    category: string;
+    year: number;
+    quarter: string;
+    iteration: string;
+    owner: string;
+    comment: string;
+}
+
+export function getTrackedItems(): Promise<TrackedItem[]> {
+    return get('/api/tracker');
+}
+
+export async function saveTrackedItem(id: string | undefined, item: Omit<TrackedItem, 'id'>): Promise<TrackedItem> {
+    if (!id) {
+        return post<Omit<TrackedItem, 'id'>, TrackedItem>('/api/tracker', item);
+    }
+
+    return unwrap<TrackedItem>(await fetch(`/api/tracker/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item)
+    }));
+}
+
+export function deleteTrackedItem(id: string): Promise<{ ok: boolean }> {
+    return remove(`/api/tracker/${encodeURIComponent(id)}`);
+}
+
+export function importTrackedItems(items: Array<Omit<TrackedItem, 'id'>>): Promise<{ added: number; skipped: number }> {
+    return post<{ items: Array<Omit<TrackedItem, 'id'>> }, { added: number; skipped: number }>('/api/tracker/import', { items });
+}
+
 export function getLinks(): Promise<ImportantLink[]> {
     return get('/api/links');
 }

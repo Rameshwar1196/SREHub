@@ -67,6 +67,7 @@ builder.Services.AddSingleton<RepositoryService>();
 builder.Services.AddSingleton<WorkLogService>();
 builder.Services.AddSingleton<DutyLogService>();
 builder.Services.AddSingleton<ImportantLinkService>();
+builder.Services.AddSingleton<TrackedWorkService>();
 builder.Services.AddSingleton<ImportantFileService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddKeyedSingleton("operations", (provider, _) => new SecureFileService(
@@ -508,8 +509,21 @@ void MapVault(RouteGroupBuilder secure)
 
     static string CurrentUser(HttpContext context) => context.User.FindFirstValue(ClaimTypes.Email) ?? "unknown";
 
-    secure.MapGet("/tree", (SecureFileService service, CancellationToken cancellationToken) =>
-        RunAsync(() => service.GetTreeAsync(cancellationToken)));
+    secure.MapGet("/tree", (SecureFileService service, UserStore users, CancellationToken cancellationToken) =>
+        RunAsync(async () =>
+        {
+            var tree = await service.GetTreeAsync(cancellationToken);
+            foreach (var file in tree.Files)
+            {
+                file.UpdatedBy = users.GetDisplayName(file.UpdatedBy);
+                foreach (var version in file.Versions)
+                {
+                    version.UploadedBy = users.GetDisplayName(version.UploadedBy);
+                }
+            }
+
+            return tree;
+        }));
 
     secure.MapPost("/folders", (SecureFolderRequest request, HttpContext context, SecureFileService service, CancellationToken cancellationToken) =>
         RunAsync(() => service.CreateFolderAsync(request.Name, request.ParentId, CurrentUser(context), cancellationToken)));
@@ -699,6 +713,27 @@ links.MapGet("/{id}/password", (string id, ImportantLinkService service, Cancell
     RunAsync(async () => new LinkPasswordResponse(await service.RevealPasswordAsync(id, cancellationToken))));
 
 links.MapDelete("/{id}", (string id, ImportantLinkService service, CancellationToken cancellationToken) =>
+    RunAsync(async () =>
+    {
+        await service.DeleteAsync(id, cancellationToken);
+        return new { ok = true };
+    }));
+
+var tracker = app.MapGroup("/api/tracker");
+
+tracker.MapGet("/", (TrackedWorkService service, CancellationToken cancellationToken) =>
+    RunAsync(() => service.GetAllAsync(cancellationToken)));
+
+tracker.MapPost("/", (TrackedWorkItem item, TrackedWorkService service, CancellationToken cancellationToken) =>
+    RunAsync(() => service.SaveAsync(null, item, cancellationToken)));
+
+tracker.MapPost("/import", (TrackedWorkImportRequest request, TrackedWorkService service, CancellationToken cancellationToken) =>
+    RunAsync(() => service.ImportAsync(request.Items, cancellationToken)));
+
+tracker.MapPut("/{id}", (string id, TrackedWorkItem item, TrackedWorkService service, CancellationToken cancellationToken) =>
+    RunAsync(() => service.SaveAsync(id, item, cancellationToken)));
+
+tracker.MapDelete("/{id}", (string id, TrackedWorkService service, CancellationToken cancellationToken) =>
     RunAsync(async () =>
     {
         await service.DeleteAsync(id, cancellationToken);

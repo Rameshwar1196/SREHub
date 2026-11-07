@@ -1,6 +1,7 @@
 import * as api from './api.js';
 import { askConfirm, askForm, askText } from './dialogs.js';
 import { byId, el, formatBytes, showError, showProgress } from './dom.js';
+import { MenuItem, menuButton, openMenu } from './menu.js';
 import { SecureFile, SecureFolder, SecureTree } from './secureTypes.js';
 
 const INFRASTRUCTURES = ['NPRD', 'PROD', 'TEST'];
@@ -319,6 +320,53 @@ function initVaultView(config: VaultConfig): void {
         }
     };
 
+    const editContent = async (file: SecureFile): Promise<void> => {
+        let current: string;
+
+        try {
+            current = (await getSecureText(file.id)).text;
+        } catch (failure) {
+            setStatus((failure as Error).message, 'error');
+            return;
+        }
+
+        const values = await askForm('Edit content', 'Saving creates a new version; earlier versions stay available.', 'Save', [
+            { name: 'text', label: file.name, kind: 'textarea', value: current, rows: 18, raw: true, required: true }
+        ]);
+
+        if (!values || values.text === current) {
+            return;
+        }
+
+        const updated = new File([values.text], file.name, { type: 'text/plain' });
+        await run(() => addSecureVersion(file.id, updated).then(() => undefined), `Saved a new version of ${file.name}.`);
+    };
+
+    const fileMenuItems = (file: SecureFile): MenuItem[] => [
+        { label: 'Copy text', onSelect: () => void copyText(file) },
+        { label: 'Edit details', onSelect: () => void editFile(file) },
+        {
+            label: 'New version',
+            onSelect: () => {
+                versionTarget = file.id;
+                versionInput.click();
+            }
+        },
+        {
+            label: 'Delete',
+            danger: true,
+            separatorBefore: true,
+            onSelect: () => {
+                void (async () => {
+                    if (await askConfirm('Delete file', `Delete "${file.name}"? It moves to the recycle bin for 30 days and can be restored from there.`, 'Delete')) {
+                        selectedFile = undefined;
+                        await run(() => deleteSecureFile(file.id).then(() => undefined), `Moved ${file.name} to the recycle bin.`);
+                    }
+                })();
+            }
+        }
+    ];
+
     const download = (file: SecureFile, version?: number): void => {
         const link = el('a');
         link.href = secureDownloadUrl(file.id, version);
@@ -345,8 +393,7 @@ function initVaultView(config: VaultConfig): void {
                 ['Environment', environmentBadge(file.environment)] as [string, HTMLElement]
             ] : []),
             ['Expiry', expiryCell(file.expiry)],
-            ['Size', formatBytes(file.size)],
-            ['Updated', `${formatTime(file.updatedAt)} by ${file.updatedBy}`]
+            ['Size', formatBytes(file.size)]
         ];
 
         const grid = el('dl', 'secure-facts');
@@ -358,29 +405,14 @@ function initVaultView(config: VaultConfig): void {
             grid.append(term, detail);
         }
 
-        const actions = el('div', 'secure-actions');
-        const addAction = (label: string, handler: () => void, danger = false): void => {
-            const button = el('button', danger ? 'secondary danger' : 'secondary', label);
-            button.type = 'button';
-            button.addEventListener('click', handler);
-            actions.appendChild(button);
-        };
-
-        addAction('Download', () => download(file));
-        addAction('Copy text', () => void copyText(file));
-        addAction('Edit details', () => void editFile(file));
-        addAction('New version', () => {
-            versionTarget = file.id;
-            versionInput.click();
-        });
-        addAction('Delete', () => {
-            void (async () => {
-                if (await askConfirm('Delete file', `Delete "${file.name}"? It moves to the recycle bin for 30 days and can be restored from there.`, 'Delete')) {
-                    selectedFile = undefined;
-                    await run(() => deleteSecureFile(file.id).then(() => undefined), `Moved ${file.name} to the recycle bin.`);
-                }
-            })();
-        }, true);
+        const actions = el('div', 'secure-file-actions');
+        const download_ = el('button', undefined, 'Download');
+        download_.type = 'button';
+        download_.addEventListener('click', () => download(file));
+        const edit = el('button', 'secondary', 'Edit content');
+        edit.type = 'button';
+        edit.addEventListener('click', () => void editContent(file));
+        actions.append(download_, edit, menuButton('More \u25BE', 'secondary', fileMenuItems(file)));
 
         const versions = el('table', 'secure-versions');
         versions.createTHead().insertRow().append(...['Version', 'Size', 'Uploaded', 'By', ''].map((title) => el('th', undefined, title)));
@@ -401,7 +433,10 @@ function initVaultView(config: VaultConfig): void {
         const notes = el('div', 'secure-notes');
         notes.append(el('h4', undefined, 'Notes'), el('p', file.notes ? undefined : 'secure-muted', file.notes || 'No notes.'));
 
-        host.replaceChildren(el('h3', undefined, file.name), grid, actions, notes, el('h4', undefined, 'Versions'), versions);
+        const title = el('div', 'secure-file-title');
+        title.append(el('h3', undefined, file.name), el('span', 'secure-muted', `Updated ${formatTime(file.updatedAt)} by ${file.updatedBy}`));
+
+        host.replaceChildren(title, actions, grid, notes, el('h4', undefined, 'Versions'), versions);
     };
 
     const renderFiles = (): void => {
@@ -426,53 +461,70 @@ function initVaultView(config: VaultConfig): void {
         });
 
         const buttons = el('div', 'secure-actions');
-        const addButton = (label: string, handler: () => void, primary = false): void => {
-            const button = el('button', primary ? undefined : 'secondary', label);
-            button.type = 'button';
-            button.addEventListener('click', handler);
-            buttons.appendChild(button);
+        const newFolder = async (): Promise<void> => {
+            const name = await askText('New folder', 'Folder name', '', 'Create', `It will be created in ${folderPath(selectedFolder)}.`);
+
+            if (name) {
+                await run(async () => {
+                    const created = await createSecureFolder(name, selectedFolder);
+                    selectedFolder = created.id;
+                }, `Created ${name}.`);
+            }
+        };
+        const newTextDocument = async (): Promise<void> => {
+            const entered = await askText('New text document', 'File name', 'notes.txt', 'Create', `It will be created in ${folderPath(selectedFolder)}.`);
+
+            if (entered) {
+                const name = /\.[A-Za-z0-9]+$/.test(entered) ? entered : `${entered}.txt`;
+                await run(async () => {
+                    const [created] = await uploadSecureFiles(selectedFolder, [new File([''], name, { type: 'text/plain' })], { type: 'Other', infrastructure: '', environment: 'N/A', expiry: '', notes: '' });
+                    selectedFile = created?.id;
+                }, `Created ${name}.`);
+            }
         };
 
-        addButton('Upload files', () => uploadInput.click(), true);
-        addButton('New folder', () => {
-            void (async () => {
-                const name = await askText('New folder', 'Folder name', '', 'Create', `It will be created in ${folderPath(selectedFolder)}.`);
-
-                if (name) {
-                    await run(async () => {
-                        const created = await createSecureFolder(name, selectedFolder);
-                        selectedFolder = created.id;
-                    }, `Created ${name}.`);
-                }
-            })();
-        });
+        buttons.appendChild(menuButton('+ Add \u25BE', '', [
+            { label: 'Upload files', onSelect: () => uploadInput.click() },
+            { label: 'New folder', onSelect: () => void newFolder() },
+            { label: 'New text document', onSelect: () => void newTextDocument() }
+        ]));
 
         const current = folderById(selectedFolder);
 
         if (current) {
-            addButton('Rename folder', () => {
-                void (async () => {
-                    const name = await askText('Rename folder', 'Folder name', current.name, 'Rename');
+            buttons.appendChild(menuButton('\u22EF', 'secondary icon-button', [
+                {
+                    label: 'Rename folder',
+                    onSelect: () => {
+                        void (async () => {
+                            const name = await askText('Rename folder', 'Folder name', current.name, 'Rename');
 
-                    if (name && name !== current.name) {
-                        await run(() => updateSecureFolder(current.id, name, current.parentId ?? null).then(() => undefined), `Renamed to ${name}.`);
+                            if (name && name !== current.name) {
+                                await run(() => updateSecureFolder(current.id, name, current.parentId ?? null).then(() => undefined), `Renamed to ${name}.`);
+                            }
+                        })();
                     }
-                })();
-            });
-            addButton('Delete folder', () => {
-                void (async () => {
-                    const inside = tree.files.filter((file) => file.folderId === current.id).length;
+                },
+                {
+                    label: 'Delete folder',
+                    danger: true,
+                    separatorBefore: true,
+                    onSelect: () => {
+                        void (async () => {
+                            const inside = tree.files.filter((file) => file.folderId === current.id).length;
 
-                    if (await askConfirm('Delete folder', `Delete "${folderPath(current.id)}" with everything in it${inside > 0 ? ` (${inside} file${inside === 1 ? '' : 's'} at this level)` : ''}? It moves to the recycle bin for 30 days.`, 'Delete')) {
-                        const parent = current.parentId ?? null;
-                        await run(async () => {
-                            await deleteSecureFolder(current.id);
-                            selectedFolder = parent;
-                            selectedFile = undefined;
-                        }, `Moved ${current.name} to the recycle bin.`);
+                            if (await askConfirm('Delete folder', `Delete "${folderPath(current.id)}" with everything in it${inside > 0 ? ` (${inside} file${inside === 1 ? '' : 's'} at this level)` : ''}? It moves to the recycle bin for 30 days.`, 'Delete')) {
+                                const parent = current.parentId ?? null;
+                                await run(async () => {
+                                    await deleteSecureFolder(current.id);
+                                    selectedFolder = parent;
+                                    selectedFile = undefined;
+                                }, `Moved ${current.name} to the recycle bin.`);
+                            }
+                        })();
                     }
-                })();
-            });
+                }
+            ], true));
         }
 
         toolbar.append(crumbs, buttons);
@@ -480,7 +532,8 @@ function initVaultView(config: VaultConfig): void {
         const subfolders = childrenOf(selectedFolder);
         const files = filesIn(selectedFolder);
         const table = el('table', 'secure-table');
-        table.createTHead().insertRow().append(...(withPlacement ? ['Name', 'Type', 'Infrastructure', 'Environment', 'Expiry', 'Size', 'Updated'] : ['Name', 'Type', 'Expiry', 'Size', 'Updated']).map((title) => el('th', undefined, title)));
+        const showFileColumns = files.length > 0;
+        table.createTHead().insertRow().append(...(!showFileColumns ? ['Name', 'Type'] : withPlacement ? ['Name', 'Type', 'Infrastructure', 'Environment', 'Expiry', 'Size', 'Updated'] : ['Name', 'Type', 'Expiry', 'Size', 'Updated']).map((title) => el('th', undefined, title)));
         const body = table.createTBody();
 
         for (const folder of subfolders) {
@@ -489,7 +542,7 @@ function initVaultView(config: VaultConfig): void {
             const name = row.insertCell();
             name.append(el('i', 'secure-folder-icon'), document.createTextNode(` ${folder.name}`));
             row.insertCell().textContent = 'Folder';
-            for (let blank = withPlacement ? 5 : 3; blank > 0; blank--) {
+            for (let blank = !showFileColumns ? 0 : withPlacement ? 5 : 3; blank > 0; blank--) {
                 row.insertCell();
             }
 
@@ -517,6 +570,12 @@ function initVaultView(config: VaultConfig): void {
             row.addEventListener('click', () => {
                 selectedFile = file.id;
                 void render();
+            });
+            row.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+                selectedFile = file.id;
+                void render();
+                openMenu(event.clientX, event.clientY, [{ label: 'Download', onSelect: () => download(file) }, { label: 'Edit content', onSelect: () => void editContent(file) }, ...fileMenuItems(file)]);
             });
         }
 

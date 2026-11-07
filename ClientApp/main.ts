@@ -12,6 +12,7 @@ import { wireLicenseViews } from './licenseView.js';
 import { showView } from './navigation.js';
 import { initRepositoriesView } from './repositoryView.js';
 import { initTerminalView } from './terminalView.js';
+import { initTrackerView } from './trackerView.js';
 import { initWorkLogView } from './workLogView.js';
 
 function wireNavigation(): void {
@@ -237,6 +238,7 @@ initWorkLogView();
 initDutyLogView();
 initSecureFilesView();
 initLinksView();
+initTrackerView();
 initImportantFilesView();
 initPersonalFilesView();
 void wireAccount();
