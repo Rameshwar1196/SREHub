@@ -36,6 +36,8 @@ interface XlsxLib {
         decode_range(ref: string): Range;
         encode_cell(cell: { r: number; c: number }): string;
         encode_col(column: number): string;
+        decode_cell(address: string): { r: number; c: number };
+        encode_range(range: Range): string;
     };
 }
 
@@ -47,6 +49,8 @@ interface PptxLib {
 
 const MAX_ROWS = 5000;
 const MAX_COLUMNS = 200;
+const BLANK_SHEET_RANGE = 'A1:J30';
+const AUTOSAVE_MILLISECONDS = 1200;
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 const EXTENSIONS: Record<string, OfficeKind> = {
@@ -154,6 +158,8 @@ async function renderExcel(host: HTMLElement, name: string, buffer: ArrayBuffer,
     const pending = new Map<string, string>();
     let active = 0;
     let editing = false;
+    let saving = false;
+    let saveTimer: number | undefined;
 
     const toolbar = el('div', 'office-toolbar');
     const tabs = el('div', 'office-tabs');
@@ -168,7 +174,7 @@ async function renderExcel(host: HTMLElement, name: string, buffer: ArrayBuffer,
     const renderSheet = (): void => {
         const sheetName = book.SheetNames[active];
         const sheet = book.Sheets[sheetName];
-        const ref = sheet['!ref'] as string | undefined;
+        const ref = (sheet['!ref'] as string | undefined) ?? (canEdit ? BLANK_SHEET_RANGE : undefined);
 
         if (!ref) {
             grid.replaceChildren(el('p', 'hint', 'This sheet is empty.'));
@@ -268,6 +274,13 @@ async function renderExcel(host: HTMLElement, name: string, buffer: ArrayBuffer,
         }
 
         updateActions();
+        scheduleSave();
+    });
+
+    grid.addEventListener('focusout', () => {
+        if (pending.size > 0) {
+            void commit();
+        }
     });
 
     const renderTabs = (): void => {
@@ -284,8 +297,8 @@ async function renderExcel(host: HTMLElement, name: string, buffer: ArrayBuffer,
         }));
     };
 
-    const applyEdits = (): void => {
-        for (const [id, value] of pending) {
+    const applyEdits = (edits: Map<string, string>): void => {
+        for (const [id, value] of edits) {
             const split = id.lastIndexOf('!');
             const sheet = book.Sheets[id.slice(0, split)];
             const address = id.slice(split + 1);
@@ -300,33 +313,66 @@ async function renderExcel(host: HTMLElement, name: string, buffer: ArrayBuffer,
             } else {
                 sheet[address] = { t: 's', v: value };
             }
+
+            if (trimmed !== '') {
+                const at = xlsx.utils.decode_cell(address);
+                const used = sheet['!ref'] ? xlsx.utils.decode_range(sheet['!ref'] as string) : { s: { r: 0, c: 0 }, e: { r: 0, c: 0 } };
+                used.e.r = Math.max(used.e.r, at.r);
+                used.e.c = Math.max(used.e.c, at.c);
+                sheet['!ref'] = xlsx.utils.encode_range(used);
+            }
         }
     };
 
     const commit = async (): Promise<void> => {
-        const confirmed = window.confirm(
-            `Save changes to '${name}'?\n\nThe workbook is rewritten, so charts, images and some formatting may be lost. Keep a copy if that matters.`
-        );
+        window.clearTimeout(saveTimer);
 
-        if (!confirmed || !save) {
+        if (!save || saving || pending.size === 0) {
             return;
         }
 
+        saving = true;
         status.textContent = 'Saving...';
+        const snapshot = new Map(pending);
 
         try {
-            applyEdits();
+            applyEdits(snapshot);
             const data = xlsx.write(book, { type: 'array', bookType: 'xlsx' });
             await save(new Blob([data], { type: XLSX_MIME }));
-            pending.clear();
-            editing = false;
-            status.textContent = 'Saved.';
-            updateActions();
-            renderSheet();
+
+            for (const [id, value] of snapshot) {
+                if (pending.get(id) === value) {
+                    pending.delete(id);
+                }
+            }
+
+            grid.querySelectorAll<HTMLElement>('td.dirty').forEach((td) => {
+                const written = snapshot.get(key(book.SheetNames[active], td.dataset.address ?? ''));
+
+                if (written !== undefined && (td.textContent ?? '') === written) {
+                    td.dataset.original = written;
+                    td.classList.remove('dirty');
+                }
+            });
+
+            status.textContent = pending.size === 0 ? 'All changes saved.' : 'Unsaved changes.';
         } catch (failure) {
             status.textContent = `Save failed: ${(failure as Error).message}`;
+        } finally {
+            saving = false;
+            updateActions();
+
+            if (pending.size > 0 && !status.textContent?.startsWith('Save failed')) {
+                scheduleSave();
+            }
         }
     };
+
+    function scheduleSave(): void {
+        window.clearTimeout(saveTimer);
+        status.textContent = 'Unsaved changes...';
+        saveTimer = window.setTimeout(() => void commit(), AUTOSAVE_MILLISECONDS);
+    }
 
     function updateActions(): void {
         const buttons: HTMLElement[] = [];
@@ -336,7 +382,7 @@ async function renderExcel(host: HTMLElement, name: string, buffer: ArrayBuffer,
             edit.type = 'button';
             edit.addEventListener('click', () => {
                 editing = true;
-                status.textContent = 'Editing: click a cell and type.';
+                status.textContent = 'Editing: click a cell and type. Changes save automatically; saving rewrites the workbook, so charts and images may be lost.';
                 updateActions();
                 renderSheet();
             });
@@ -344,21 +390,21 @@ async function renderExcel(host: HTMLElement, name: string, buffer: ArrayBuffer,
         }
 
         if (editing) {
-            const saveButton = el('button', undefined, pending.size > 0 ? `Save (${pending.size})` : 'Save');
-            saveButton.type = 'button';
-            saveButton.disabled = pending.size === 0;
-            saveButton.addEventListener('click', () => void commit());
+            const done = el('button', undefined, 'Done');
+            done.type = 'button';
+            done.addEventListener('click', () => {
+                void (async () => {
+                    await commit();
 
-            const discard = el('button', 'secondary', 'Discard');
-            discard.type = 'button';
-            discard.addEventListener('click', () => {
-                pending.clear();
-                editing = false;
-                status.textContent = '';
-                updateActions();
-                renderSheet();
+                    if (pending.size === 0) {
+                        editing = false;
+                        status.textContent = '';
+                        updateActions();
+                        renderSheet();
+                    }
+                })();
             });
-            buttons.push(saveButton, discard);
+            buttons.push(done);
         }
 
         actions.replaceChildren(status, ...buttons);

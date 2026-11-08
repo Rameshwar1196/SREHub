@@ -427,6 +427,9 @@ importantFiles.MapPost("/upload", async (HttpRequest httpRequest, ImportantFileS
     });
 });
 
+importantFiles.MapPost("/new", (string name, ImportantFileService service, CancellationToken cancellationToken) =>
+    RunAsync(() => service.CreateBlankAsync(name, cancellationToken)));
+
 importantFiles.MapDelete("/", (string name, ImportantFileService service) =>
     RunAsync(() =>
     {

@@ -900,7 +900,17 @@ export function initDutyLogView(): void {
                 const time = textInput(timeForShift(shift.value), 'Set by the shift');
                 time.readOnly = true;
                 const handover = select(HANDOVER, entry?.handover ?? '', 'wl-choice');
-                const doNote = textInput(entry?.doNote ?? '', 'Optional');
+                const doNote = el('textarea', 'duty-note');
+                doNote.value = entry?.doNote ?? '';
+                doNote.rows = 1;
+                doNote.maxLength = 2000;
+                doNote.placeholder = 'Optional - Enter adds a new line';
+                const fit = (): void => {
+                    doNote.style.height = 'auto';
+                    doNote.style.height = `${doNote.scrollHeight}px`;
+                };
+                doNote.addEventListener('input', fit);
+                window.requestAnimationFrame(fit);
                 const doState = el('span', 'worklog-state');
 
                 const doRow = doTable.body.insertRow();

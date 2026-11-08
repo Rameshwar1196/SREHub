@@ -381,6 +381,10 @@ export function deleteImportantFile(name: string): Promise<{ ok: boolean }> {
     return remove(`/api/files?name=${encodeURIComponent(name)}`);
 }
 
+export function createImportantFile(name: string): Promise<ImportantFile> {
+    return post<Record<string, never>, ImportantFile>(`/api/files/new?name=${encodeURIComponent(name)}`, {});
+}
+
 export function getMathsLibrary(): Promise<MathsLibrary> {
     return get('/api/maths');
 }

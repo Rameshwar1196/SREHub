@@ -7,6 +7,8 @@ const ATTENDANCE = ['Yes', 'Late', 'No', 'Leave', 'Comp-off', 'Holiday', 'Weeken
 const EMERGENCY_LEAVE = ['No', 'Yes', 'Weekend', 'N/A'];
 const NETWORK_POWER = ['No', 'Network issue', 'Power outage', 'Both', 'N/A'];
 const WORKING = ['Yes', 'Late', 'DO-wkd', 'DO-wk'];
+const DO_WEEK_DAYS = 5;
+const DO_WEEKEND_DAYS = 2;
 
 const DEFAULT_SUMMARY: Record<string, string> = {
     Yes: 'All good.',
@@ -237,7 +239,21 @@ function pieChart(rows: WorkLogSummaryRow[]): SVGSVGElement {
     return chart;
 }
 
-function renderSummary(body: HTMLElement, rows: WorkLogSummaryRow[]): void {
+function renderSummary(body: HTMLElement, rows: WorkLogSummaryRow[], entries: WorkLogEntry[]): void {
+    const weekDays = entries.filter((entry) => entry.attendance === 'DO-wk').length;
+    const weekendDays = entries.filter((entry) => entry.attendance === 'DO-wkd').length;
+    const count = (days: number, perUnit: number): string => String(Number((days / perUnit).toFixed(1)));
+
+    const duty = el('tr');
+    const dutyName = el('span', 'wl-category');
+    const dutyDot = el('i', 'dot');
+    dutyDot.style.background = 'var(--wl-working)';
+    dutyName.append(dutyDot, document.createTextNode('DO (Week + Weekend)'));
+    duty.insertCell().appendChild(dutyName);
+    duty.insertCell().textContent = String(weekDays + weekendDays);
+    duty.insertCell().textContent = `${count(weekDays, DO_WEEK_DAYS)} + ${count(weekendDays, DO_WEEKEND_DAYS)}`;
+    duty.title = `${DO_WEEK_DAYS} weekday DO days make 1 week; ${DO_WEEKEND_DAYS} weekend DO days make 1 weekend.`;
+
     body.replaceChildren(...rows.map((row) => {
         const tr = el('tr');
         const name = el('span', 'wl-category');
@@ -249,7 +265,7 @@ function renderSummary(body: HTMLElement, rows: WorkLogSummaryRow[]): void {
         tr.insertCell().textContent = String(row.days);
         tr.insertCell().textContent = `${Math.round(row.percentage * 100)}%`;
         return tr;
-    }));
+    }), duty);
 }
 
 export function initWorkLogView(): void {
@@ -293,7 +309,8 @@ export function initWorkLogView(): void {
     const renderSide = (): void => {
         const rowsForMonth = yearData?.months[state.month - 1]?.summary ?? [];
         monthSelect.value = String(state.month);
-        renderSummary(summaryBody, rowsForMonth);
+        const monthPrefix = `${state.year}-${pad(state.month)}-`;
+        renderSummary(summaryBody, rowsForMonth, (yearData?.entries ?? []).filter((entry) => entry.date.startsWith(monthPrefix)));
         pieHost.replaceChildren(pieChart(rowsForMonth));
     };
 

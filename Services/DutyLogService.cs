@@ -8,6 +8,7 @@ namespace Aras.SreHub.Services;
 public sealed class DutyLogService
 {
     private const int MaxTextLength = 500;
+    private const int MaxNoteLength = 2000;
     private const int MaxRosterBlocks = 500;
     private const int MaxNames = 100;
     private const int MaxDailyBackups = 60;
@@ -256,7 +257,7 @@ public sealed class DutyLogService
             DoShift = Text(incoming.DoShift, "DO shift"),
             ShiftTime = Text(incoming.ShiftTime, "Shift time"),
             Handover = Choice(incoming.Handover, HandoverValues, "Handover"),
-            DoNote = Text(incoming.DoNote, "DO note")
+            DoNote = Text(incoming.DoNote, "DO note", MaxNoteLength)
         };
     }
 
@@ -272,13 +273,13 @@ public sealed class DutyLogService
         return trimmed;
     }
 
-    private static string Text(string? value, string label)
+    private static string Text(string? value, string label, int maxLength = MaxTextLength)
     {
         var trimmed = (value ?? string.Empty).Trim();
 
-        if (trimmed.Length > MaxTextLength)
+        if (trimmed.Length > maxLength)
         {
-            throw new ArgumentException($"{label} is limited to {MaxTextLength} characters.");
+            throw new ArgumentException($"{label} is limited to {maxLength} characters.");
         }
 
         return trimmed;

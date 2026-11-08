@@ -856,16 +856,17 @@
                         <div>
                             <p class="kicker">Other</p>
                             <h2>Important files</h2>
-                            <p class="page-sub">Keep the documents you refer to often. PDF, Word and PowerPoint open for viewing; Excel workbooks can also be edited and saved.</p>
+                            <p class="page-sub">Keep the documents you refer to often. Create new text, Excel or Word files or upload your own. PDF, Word and PowerPoint open for viewing; text and Excel files can also be edited and saved.</p>
                         </div>
                         <input type="search" id="files-filter" class="link-filter" placeholder="Search files" aria-label="Search files" />
                     </div>
 
                     <div class="files-layout">
                         <aside class="panel files-side">
+                            <div id="files-new-host" class="files-new-host"></div>
                             <label class="files-upload" for="files-input">
                                 <input type="file" id="files-input" multiple
-                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.ppt,.pptx" />
+                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.ppt,.pptx,.txt,.md" />
                                 <span>Upload files</span>
                             </label>
                             <div id="files-status" class="hint" role="status"></div>
