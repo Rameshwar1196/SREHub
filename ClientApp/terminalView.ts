@@ -5,6 +5,7 @@ import {
     runTerminalCommand,
     stopTerminalCommand
 } from './api.js';
+import { askConfirm } from './dialogs.js';
 import { byId, el } from './dom.js';
 import { TerminalEvent, TerminalSessionInfo } from './terminalTypes.js';
 
@@ -260,9 +261,11 @@ export function initTerminalView(): void {
     });
 
     restartButton.addEventListener('click', () => {
-        if (!running || confirm('Stop the running command and start a new shell?')) {
-            void restart();
-        }
+        void (async () => {
+            if (!running || await askConfirm('New session', 'Stop the running command and start a new shell?', 'Restart')) {
+                void restart();
+            }
+        })();
     });
 
     output.addEventListener('click', () => {

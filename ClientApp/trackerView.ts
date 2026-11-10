@@ -87,6 +87,53 @@ export function initTrackerView(): void {
 
     let items: TrackedItem[] = [];
     let owner = '';
+    const selected = new Set<string>();
+
+    const selectionBar = (): HTMLElement => {
+        const bar = el('div', 'tracker-selection');
+        bar.hidden = selected.size === 0;
+
+        if (selected.size === 0) {
+            return bar;
+        }
+
+        const chosen = items.filter((item) => selected.has(item.id));
+        const button = (label: string, className: string, handler: () => void): HTMLButtonElement => {
+            const control = el('button', className, label);
+            control.type = 'button';
+            control.addEventListener('click', handler);
+            return control;
+        };
+
+        const actions = el('div', 'secure-actions');
+
+        if (chosen.length === 1) {
+            actions.appendChild(button('Edit', '', () => void form(chosen[0])));
+        }
+
+        actions.append(
+            button('Delete', 'secondary danger', () => {
+                void (async () => {
+                    const text = chosen.length === 1 ? `Delete "${chosen[0].title}"?` : `Delete ${chosen.length} entries?`;
+
+                    if (await askConfirm('Delete entries', text, 'Delete')) {
+                        const ids = chosen.map((item) => item.id);
+                        ids.forEach((id) => selected.delete(id));
+                        await perform(async () => {
+                            for (const id of ids) {
+                                await api.deleteTrackedItem(id);
+                            }
+                        }, ids.length === 1 ? 'Deleted the entry.' : `Deleted ${ids.length} entries.`);
+                    }
+                })();
+            }),
+            button('Clear', 'secondary', () => {
+                selected.clear();
+                render();
+            }));
+        bar.append(el('strong', undefined, `${chosen.length} selected`), actions);
+        return bar;
+    };
 
     const setMessage = (text: string, tone: 'ok' | 'error' = 'ok'): void => {
         message.textContent = text;
@@ -139,6 +186,12 @@ export function initTrackerView(): void {
         try {
             await work();
             items = await api.getTrackedItems();
+            for (const id of [...selected]) {
+                if (!items.some((item) => item.id === id)) {
+                    selected.delete(id);
+                }
+            }
+
             fillPeriods();
             setMessage(success);
         } catch (failure) {
@@ -165,18 +218,41 @@ export function initTrackerView(): void {
             groups.set(key, [...(groups.get(key) ?? []), item]);
         }
 
-        host.replaceChildren(...[...groups].map(([key, group]) => {
+        host.replaceChildren(selectionBar(), ...[...groups].map(([key, group]) => {
             const section = el('section', 'tracker-group');
             const tickets = group.filter((item) => item.kind === 'Ticket').length;
             section.append(el('h3', undefined, key.replace(' ', ' / ')), el('p', 'secure-muted', `${tickets} ticket${tickets === 1 ? '' : 's'}, ${group.length - tickets} KB / note${group.length - tickets === 1 ? '' : 's'}`));
 
             const table = el('table', 'secure-table');
-            table.createTHead().insertRow().append(...['Type', 'Title', 'Category', 'Iteration', 'Owner', 'Comment', ''].map((name) => el('th', undefined, name)));
+            table.createTHead().insertRow().append(...['', '#', 'Type', 'Title', 'Category', 'Iteration', 'Owner', 'Comment'].map((name) => el('th', undefined, name)));
+            const headCheck = el('input');
+            headCheck.type = 'checkbox';
+            headCheck.setAttribute('aria-label', `Select all in ${key}`);
+            headCheck.checked = group.every((item) => selected.has(item.id));
+            headCheck.indeterminate = !headCheck.checked && group.some((item) => selected.has(item.id));
+            headCheck.addEventListener('change', () => {
+                group.forEach((item) => headCheck.checked ? selected.add(item.id) : selected.delete(item.id));
+                render();
+            });
+            table.tHead!.rows[0].cells[0].appendChild(headCheck);
             const body = table.createTBody();
+            let number = 0;
 
             for (const item of group) {
                 const row = body.insertRow();
                 row.className = 'secure-row';
+                row.classList.toggle('selected', selected.has(item.id));
+
+                const check = el('input');
+                check.type = 'checkbox';
+                check.checked = selected.has(item.id);
+                check.setAttribute('aria-label', `Select ${item.title}`);
+                check.addEventListener('change', () => {
+                    check.checked ? selected.add(item.id) : selected.delete(item.id);
+                    render();
+                });
+                row.insertCell().appendChild(check);
+                row.insertCell().textContent = String(++number);
                 row.insertCell().appendChild(badge(item.kind));
 
                 const titleCell = row.insertCell();
@@ -195,21 +271,6 @@ export function initTrackerView(): void {
                 row.insertCell().textContent = item.iteration || '-';
                 row.insertCell().textContent = item.owner || '-';
                 row.insertCell().textContent = item.comment || '-';
-
-                const actions = row.insertCell();
-                const edit = el('button', 'secondary', 'Edit');
-                const del = el('button', 'secondary danger', 'Delete');
-                edit.type = 'button';
-                del.type = 'button';
-                edit.addEventListener('click', () => void form(item));
-                del.addEventListener('click', () => {
-                    void (async () => {
-                        if (await askConfirm('Delete entry', `Delete "${item.title}"?`, 'Delete')) {
-                            await perform(() => api.deleteTrackedItem(item.id).then(() => undefined), 'Deleted the entry.');
-                        }
-                    })();
-                });
-                actions.append(edit, del);
             }
 
             section.appendChild(el('div', 'secure-list')).appendChild(table);

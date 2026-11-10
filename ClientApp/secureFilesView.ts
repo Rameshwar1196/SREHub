@@ -2,6 +2,7 @@ import * as api from './api.js';
 import { askConfirm, askForm, askText } from './dialogs.js';
 import { byId, el, formatBytes, showError, showProgress } from './dom.js';
 import { MenuItem, menuButton, openMenu } from './menu.js';
+import { toastCopied } from './toast.js';
 import { SecureFile, SecureFolder, SecureTree } from './secureTypes.js';
 
 const INFRASTRUCTURES = ['NPRD', 'PROD', 'TEST'];
@@ -115,6 +116,8 @@ function initVaultView(config: VaultConfig): void {
     const filesIn = (folderId: string | null): SecureFile[] =>
         tree.files.filter((file) => (file.folderId ?? null) === folderId);
 
+    const itemCount = (folderId: string | null): number => childrenOf(folderId).length + filesIn(folderId).length;
+
     const folderOptions = (): Array<{ value: string; label: string }> => [
         { value: '', label: '/ (top level)' },
         ...tree.folders.map((folder) => ({ value: folder.id, label: folderPath(folder.id) })).sort((first, second) => first.label.localeCompare(second.label))
@@ -208,8 +211,13 @@ function initVaultView(config: VaultConfig): void {
             });
 
             const name = el('span', 'secure-node-name', label);
-            const count = el('span', 'secure-count', String(filesIn(id).length));
+            const count = el('span', 'secure-count', String(itemCount(id)));
             row.append(caret, el('i', 'secure-folder-icon'), name, count);
+            const folder = folderById(id);
+
+            if (folder) {
+                row.addEventListener('contextmenu', (event) => openFolderMenu(event, folder));
+            }
             row.addEventListener('click', () => {
                 pane = 'files';
                 selectedFolder = id;
@@ -226,7 +234,7 @@ function initVaultView(config: VaultConfig): void {
         const rootRow = el('div', 'secure-node');
         rootRow.classList.toggle('active', pane === 'files' && selectedFolder === null);
         rootRow.style.paddingLeft = '10px';
-        rootRow.append(el('span', 'secure-caret'), el('i', 'secure-folder-icon'), el('span', 'secure-node-name', rootLabel), el('span', 'secure-count', String(filesIn(null).length)));
+        rootRow.append(el('span', 'secure-caret'), el('i', 'secure-folder-icon'), el('span', 'secure-node-name', rootLabel), el('span', 'secure-count', String(itemCount(null))));
         rootRow.addEventListener('click', () => {
             pane = 'files';
             selectedFolder = null;
@@ -249,6 +257,77 @@ function initVaultView(config: VaultConfig): void {
         }
 
         await render();
+    };
+
+    const newFolderIn = async (parent: string | null): Promise<void> => {
+        const name = await askText('New folder', 'Folder name', '', 'Create', `It will be created in ${folderPath(parent)}.`);
+
+        if (name) {
+            await run(async () => {
+                const created = await createSecureFolder(name, parent);
+                selectedFolder = created.id;
+            }, `Created ${name}.`);
+        }
+    };
+
+    const renameFolder = async (folder: SecureFolder): Promise<void> => {
+        const name = await askText('Rename folder', 'Folder name', folder.name, 'Rename');
+
+        if (name && name !== folder.name) {
+            await run(() => updateSecureFolder(folder.id, name, folder.parentId ?? null).then(() => undefined), `Renamed to ${name}.`);
+        }
+    };
+
+    const isInside = (id: string | null, ancestor: string): boolean => {
+        for (let current = folderById(id); current; current = folderById(current.parentId)) {
+            if (current.id === ancestor) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    const deleteFolder = async (folder: SecureFolder): Promise<void> => {
+        const inside = itemCount(folder.id);
+
+        if (await askConfirm('Delete folder', `Delete "${folderPath(folder.id)}" with everything in it${inside > 0 ? ` (${inside} item${inside === 1 ? '' : 's'} at this level)` : ''}? It moves to the recycle bin for 30 days.`, 'Delete')) {
+            await run(async () => {
+                await deleteSecureFolder(folder.id);
+
+                if (selectedFolder && isInside(selectedFolder, folder.id)) {
+                    selectedFolder = folder.parentId ?? null;
+                }
+
+                selectedFile = undefined;
+            }, `Moved ${folder.name} to the recycle bin.`);
+        }
+    };
+
+    const openFolderMenu = (event: MouseEvent, folder: SecureFolder): void => {
+        event.preventDefault();
+        event.stopPropagation();
+        openMenu(event.clientX, event.clientY, [
+            {
+                label: 'Open',
+                onSelect: () => {
+                    pane = 'files';
+                    selectedFolder = folder.id;
+                    selectedFile = undefined;
+                    void render();
+                }
+            },
+            { label: 'New folder inside', onSelect: () => void newFolderIn(folder.id) },
+            {
+                label: 'Upload files here',
+                onSelect: () => {
+                    selectedFolder = folder.id;
+                    uploadInput.click();
+                }
+            },
+            { label: 'Rename', separatorBefore: true, onSelect: () => void renameFolder(folder) },
+            { label: 'Delete', danger: true, onSelect: () => void deleteFolder(folder) }
+        ]);
     };
 
     const startUpload = async (files: File[]): Promise<void> => {
@@ -314,7 +393,8 @@ function initVaultView(config: VaultConfig): void {
         try {
             const { text } = await getSecureText(file.id);
             await navigator.clipboard.writeText(text);
-            setStatus(`Copied the text of ${file.name}. The clipboard is not cleared automatically, so paste it where you need it and copy something else afterwards.`, 'ok');
+            toastCopied(file.name);
+            setStatus(`Copied the text of ${file.name}. The clipboard is not cleared automatically.`, 'ok');
         } catch (failure) {
             setStatus((failure as Error).message, 'error');
         }
@@ -331,7 +411,7 @@ function initVaultView(config: VaultConfig): void {
         }
 
         const values = await askForm('Edit content', 'Saving creates a new version; earlier versions stay available.', 'Save', [
-            { name: 'text', label: file.name, kind: 'textarea', value: current, rows: 18, raw: true, required: true }
+            { name: 'text', label: file.name, kind: 'textarea', value: current, rows: 18, raw: true, required: true, highlight: /\.md$/i.test(file.name) ? 'markdown' : undefined }
         ]);
 
         if (!values || values.text === current) {
@@ -461,16 +541,7 @@ function initVaultView(config: VaultConfig): void {
         });
 
         const buttons = el('div', 'secure-actions');
-        const newFolder = async (): Promise<void> => {
-            const name = await askText('New folder', 'Folder name', '', 'Create', `It will be created in ${folderPath(selectedFolder)}.`);
-
-            if (name) {
-                await run(async () => {
-                    const created = await createSecureFolder(name, selectedFolder);
-                    selectedFolder = created.id;
-                }, `Created ${name}.`);
-            }
-        };
+        const newFolder = (): Promise<void> => newFolderIn(selectedFolder);
         const newTextDocument = async (): Promise<void> => {
             const entered = await askText('New text document', 'File name', 'notes.txt', 'Create', `It will be created in ${folderPath(selectedFolder)}.`);
 
@@ -493,37 +564,8 @@ function initVaultView(config: VaultConfig): void {
 
         if (current) {
             buttons.appendChild(menuButton('\u22EF', 'secondary icon-button', [
-                {
-                    label: 'Rename folder',
-                    onSelect: () => {
-                        void (async () => {
-                            const name = await askText('Rename folder', 'Folder name', current.name, 'Rename');
-
-                            if (name && name !== current.name) {
-                                await run(() => updateSecureFolder(current.id, name, current.parentId ?? null).then(() => undefined), `Renamed to ${name}.`);
-                            }
-                        })();
-                    }
-                },
-                {
-                    label: 'Delete folder',
-                    danger: true,
-                    separatorBefore: true,
-                    onSelect: () => {
-                        void (async () => {
-                            const inside = tree.files.filter((file) => file.folderId === current.id).length;
-
-                            if (await askConfirm('Delete folder', `Delete "${folderPath(current.id)}" with everything in it${inside > 0 ? ` (${inside} file${inside === 1 ? '' : 's'} at this level)` : ''}? It moves to the recycle bin for 30 days.`, 'Delete')) {
-                                const parent = current.parentId ?? null;
-                                await run(async () => {
-                                    await deleteSecureFolder(current.id);
-                                    selectedFolder = parent;
-                                    selectedFile = undefined;
-                                }, `Moved ${current.name} to the recycle bin.`);
-                            }
-                        })();
-                    }
-                }
+                { label: 'Rename folder', onSelect: () => void renameFolder(current) },
+                { label: 'Delete folder', danger: true, separatorBefore: true, onSelect: () => void deleteFolder(current) }
             ], true));
         }
 
@@ -551,6 +593,7 @@ function initVaultView(config: VaultConfig): void {
                 selectedFile = undefined;
                 void render();
             });
+            row.addEventListener('contextmenu', (event) => openFolderMenu(event, folder));
         }
 
         for (const file of files) {

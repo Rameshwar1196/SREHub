@@ -6,9 +6,11 @@ import {
     importantFileUrl,
     uploadImportantFiles
 } from './api.js';
-import { askText } from './dialogs.js';
+import { askConfirm, askText } from './dialogs.js';
 import { byId, el, formatBytes, showError, showProgress } from './dom.js';
 import { menuButton } from './menu.js';
+import { markdownSurface } from './mdHighlight.js';
+import { renderMarkdown } from './markdown.js';
 import { officeKindOf, renderOffice } from './officeViewer.js';
 
 const AUTOSAVE_MILLISECONDS = 1200;
@@ -56,6 +58,8 @@ export function initImportantFilesView(): void {
         editor.value = original;
         editor.spellcheck = false;
         editor.setAttribute('aria-label', file.name);
+        const isMarkdown = /\.md$/i.test(file.name);
+        const surface = isMarkdown ? markdownSurface(editor) : { element: editor as HTMLElement, refresh: (): void => undefined };
 
         const note = el('span', 'office-status', 'Changes save automatically.');
 
@@ -98,7 +102,28 @@ export function initImportantFilesView(): void {
 
         const actions = el('div', 'office-toolbar');
         actions.append(note);
-        holder.append(actions, editor);
+
+        if (!isMarkdown) {
+            holder.append(actions, surface.element);
+            return;
+        }
+
+        const preview = el('div', 'files-md-preview hidden');
+        const toggle = el('button', 'link-button', 'Preview');
+        toggle.type = 'button';
+        toggle.addEventListener('click', () => {
+            const showing = preview.classList.contains('hidden');
+
+            if (showing) {
+                preview.replaceChildren(renderMarkdown(editor.value));
+            }
+
+            preview.classList.toggle('hidden', !showing);
+            surface.element.classList.toggle('hidden', showing);
+            toggle.textContent = showing ? 'Edit' : 'Preview';
+        });
+        actions.append(toggle);
+        holder.append(actions, surface.element, preview);
     };
 
     const open = async (file: ImportantFile): Promise<void> => {
@@ -120,7 +145,7 @@ export function initImportantFilesView(): void {
         const remove = el('button', 'link-button danger', 'Delete');
         remove.type = 'button';
         remove.addEventListener('click', async () => {
-            if (!window.confirm(`Delete '${file.name}'?\n\nThis cannot be undone.`)) {
+            if (!await askConfirm('Delete file', `Delete '${file.name}'? This cannot be undone.`, 'Delete')) {
                 return;
             }
 

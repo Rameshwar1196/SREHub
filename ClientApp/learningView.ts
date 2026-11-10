@@ -16,7 +16,7 @@ import {
     setProgress,
     uploadFiles
 } from './api.js';
-import { askMove, askText } from './dialogs.js';
+import { askConfirm, askMove, askText } from './dialogs.js';
 import { bindCollapse, byId, el, formatBytes, showError } from './dom.js';
 import { EntryLocation, Flashcard, LearningFileContent, LearningNode, SubjectDetail, SubjectSummary } from './learningTypes.js';
 import { showView } from './navigation.js';
@@ -37,6 +37,7 @@ const KIND_ICON: Record<string, string> = {
 const state = {
     subjects: [] as SubjectSummary[],
     subjectId: null as string | null,
+    scope: '' as Scope,
     detail: null as SubjectDetail | null,
     file: null as LearningFileContent | null,
     cards: [] as Flashcard[],
@@ -67,10 +68,57 @@ async function reloadSubjects(selectId?: string): Promise<void> {
     }
 }
 
+const TOPICS: Array<{ id: string; title: string; numbers: number[] }> = [
+    { id: 'foundations', title: 'Foundations', numbers: [1, 2, 3, 9, 13] },
+    { id: 'cloud', title: 'Cloud & Platform', numbers: [4, 5, 6, 7, 8] },
+    { id: 'practice', title: 'Practice & Reference', numbers: [10, 11, 12] },
+    { id: 'aras', title: 'Aras Documentation', numbers: [14] }
+];
+
+type Scope = '' | 'kb' | 'other';
+
+const ARAS_SCOPES: Array<{ scope: Exclude<Scope, ''>; title: string; meta: string }> = [
+    { scope: 'kb', title: '1. KB', meta: 'Knowledge base articles' },
+    { scope: 'other', title: '2. Other documents', meta: 'Entries, templates and Package Studio' }
+];
+
+const isKbFolder = (node: LearningNode): boolean => node.isDirectory && node.name.toLowerCase() === 'kb';
+
+function topicOf(subjectId: string): string {
+    const number = Number(/^(\d+)/.exec(subjectId)?.[1]);
+    return TOPICS.find((topic) => topic.numbers.includes(number))?.id ?? 'practice';
+}
+
+const TOPIC_KEY = 'srehub.learning.topics';
+let openTopics: Set<string> | undefined;
+
+function loadOpenTopics(): Set<string> {
+    try {
+        const stored = localStorage.getItem(TOPIC_KEY);
+
+        if (stored) {
+            return new Set(JSON.parse(stored) as string[]);
+        }
+    } catch {
+        // Fall through to the default.
+    }
+
+    return new Set([topicOf(state.subjectId ?? state.subjects[0]?.id ?? TOPICS[0].id)]);
+}
+
+function saveOpenTopics(): void {
+    try {
+        localStorage.setItem(TOPIC_KEY, JSON.stringify([...(openTopics ?? [])]));
+    } catch {
+        // Remembering the choice is best effort.
+    }
+}
+
 function renderSubjectList(): void {
     const filter = byId<HTMLInputElement>('subject-filter').value.trim().toLowerCase();
     const list = byId('subject-list');
     list.replaceChildren();
+    openTopics ??= loadOpenTopics();
 
     const visible = state.subjects.filter((subject) =>
         !filter || subject.title.toLowerCase().includes(filter) || subject.id.toLowerCase().includes(filter));
@@ -80,23 +128,78 @@ function renderSubjectList(): void {
         return;
     }
 
-    for (const subject of visible) {
-        const item = el('li');
-        const button = el('button', `subject-item${subject.id === state.subjectId ? ' active' : ''}`);
-        button.style.setProperty('--hue', String(hueFor(subject.id)));
+    for (const topic of TOPICS) {
+        const subjects = visible.filter((subject) => topicOf(subject.id) === topic.id);
 
-        button.append(
-            el('span', 'subject-title', subject.title),
-            el('span', 'subject-meta', `${subject.completedCount}/${subject.fileCount} done`),
-            progressBar(subject.completedCount, subject.fileCount)
-        );
+        if (subjects.length === 0) {
+            continue;
+        }
 
-        button.addEventListener('click', () => {
-            showView('view-learning');
-            void openSubject(subject.id);
+        const expanded = filter.length > 0 || openTopics.has(topic.id);
+        const done = subjects.reduce((sum, subject) => sum + subject.completedCount, 0);
+        const total = subjects.reduce((sum, subject) => sum + subject.fileCount, 0);
+
+        const group = el('li', 'subject-topic');
+        group.classList.toggle('collapsed', !expanded);
+
+        const head = el('button', 'subject-topic-head');
+        head.type = 'button';
+        head.setAttribute('aria-expanded', String(expanded));
+        head.append(
+            el('i', 'subject-topic-chevron'),
+            el('span', 'subject-topic-title', topic.title),
+            el('span', 'subject-topic-meta', topic.id === 'aras' ? `${ARAS_SCOPES.length} sections` : `${subjects.length} \u00B7 ${done}/${total}`));
+        head.addEventListener('click', () => {
+            if (filter) {
+                return;
+            }
+
+            openTopics!.has(topic.id) ? openTopics!.delete(topic.id) : openTopics!.add(topic.id);
+            saveOpenTopics();
+            renderSubjectList();
         });
-        item.appendChild(button);
-        list.appendChild(item);
+        group.appendChild(head);
+
+        const items = el('ul', 'subject-topic-list');
+        items.hidden = !expanded;
+        group.appendChild(items);
+        list.appendChild(group);
+
+        for (const subject of subjects) {
+            if (topic.id === 'aras') {
+                for (const entry of ARAS_SCOPES) {
+                    const item = el('li');
+                    const button = el('button', `subject-item${subject.id === state.subjectId && state.scope === entry.scope ? ' active' : ''}`);
+                    button.style.setProperty('--hue', String(hueFor(subject.id)));
+                    button.append(el('span', 'subject-title', entry.title), el('span', 'subject-meta', entry.meta));
+                    button.addEventListener('click', () => {
+                        showView('view-learning');
+                        void openSubject(subject.id, entry.scope);
+                    });
+                    item.appendChild(button);
+                    items.appendChild(item);
+                }
+
+                continue;
+            }
+
+            const item = el('li');
+            const button = el('button', `subject-item${subject.id === state.subjectId ? ' active' : ''}`);
+            button.style.setProperty('--hue', String(hueFor(subject.id)));
+
+            button.append(
+                el('span', 'subject-title', subject.title),
+                el('span', 'subject-meta', `${subject.completedCount}/${subject.fileCount} done`),
+                progressBar(subject.completedCount, subject.fileCount)
+            );
+
+            button.addEventListener('click', () => {
+                showView('view-learning');
+                void openSubject(subject.id);
+            });
+            item.appendChild(button);
+            items.appendChild(item);
+        }
     }
 }
 
@@ -117,10 +220,11 @@ function progressBar(done: number, total: number): HTMLElement {
     return track;
 }
 
-async function openSubject(subjectId: string): Promise<void> {
+async function openSubject(subjectId: string, scope?: Scope): Promise<void> {
     const header = byId('subject-header');
 
     try {
+        state.scope = scope ?? (subjectId === state.subjectId ? state.scope : '');
         state.subjectId = subjectId;
         state.detail = await getSubject(subjectId);
         renderSubjectList();
@@ -128,7 +232,7 @@ async function openSubject(subjectId: string): Promise<void> {
         renderTree(state.detail);
         byId<HTMLInputElement>('note-subject').value = subjectId;
 
-        if (state.detail.readmePath) {
+        if (state.detail.readmePath && state.scope !== 'kb') {
             await openFile(state.detail.readmePath);
         } else {
             byId('file-view').replaceChildren(el('p', 'hint', 'Select a file from the tree.'));
@@ -143,7 +247,9 @@ function renderSubjectHeader(detail: SubjectDetail): void {
     header.replaceChildren();
     header.style.borderLeftColor = `hsl(${hueFor(detail.id)} 75% 62%)`;
 
-    header.appendChild(el('h2', undefined, detail.title));
+    header.appendChild(el('h2', undefined, state.scope
+        ? `Aras Documentation \u2014 ${ARAS_SCOPES.find((entry) => entry.scope === state.scope)?.title.slice(3) ?? detail.title}`
+        : detail.title));
 
     if (detail.description) {
         header.appendChild(el('p', 'hint', detail.description));
@@ -259,8 +365,10 @@ async function moveEntryAction(subjectId: string, path: string, isDirectory: boo
 }
 
 async function removeSubject(detail: SubjectDetail): Promise<void> {
-    const confirmed = window.confirm(
-        `Delete the subject '${detail.title}' and all ${detail.fileCount} file(s) inside it?\n\nThis cannot be undone.`);
+    const confirmed = await askConfirm(
+        'Delete subject',
+        `Delete the subject '${detail.title}' and all ${detail.fileCount} file(s) inside it? This cannot be undone.`,
+        'Delete');
 
     if (!confirmed) {
         return;
@@ -281,7 +389,12 @@ async function removeSubject(detail: SubjectDetail): Promise<void> {
 
 function renderTree(detail: SubjectDetail): void {
     const tree = byId('file-tree');
-    tree.replaceChildren(buildNodeList(detail.files));
+    const nodes = state.scope === 'kb'
+        ? detail.files.find(isKbFolder)?.children ?? []
+        : state.scope === 'other'
+            ? detail.files.filter((node) => !isKbFolder(node))
+            : detail.files;
+    tree.replaceChildren(buildNodeList(nodes));
 }
 
 function buildNodeList(nodes: LearningNode[]): HTMLElement {
@@ -440,10 +553,10 @@ function renderFile(file: LearningFileContent): void {
 
 async function removeEntry(subjectId: string, path: string, isDirectory: boolean): Promise<void> {
     const message = isDirectory
-        ? `Delete the folder '${path}' and everything inside it?\n\nThis cannot be undone.`
-        : `Delete '${path}'?\n\nThis cannot be undone.`;
+        ? `Delete the folder '${path}' and everything inside it? This cannot be undone.`
+        : `Delete '${path}'? This cannot be undone.`;
 
-    if (!window.confirm(message)) {
+    if (!await askConfirm(isDirectory ? 'Delete folder' : 'Delete file', message, 'Delete')) {
         return;
     }
 

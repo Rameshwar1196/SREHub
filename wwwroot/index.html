@@ -787,9 +787,9 @@
                         <input type="search" id="link-filter" class="link-filter" placeholder="Search links" aria-label="Search links" />
                     </div>
 
-                    <div class="panel">
+                    <details class="panel link-panel" id="link-panel">
+                        <summary id="link-form-title">Add a link</summary>
                         <form id="link-form">
-                            <h3 id="link-form-title">Add a link</h3>
 
                             <div class="row">
                                 <div class="field">
@@ -843,7 +843,7 @@
                                 <button type="button" id="link-cancel" class="secondary hidden">Cancel</button>
                             </div>
                         </form>
-                    </div>
+                    </details>
 
                     <div id="link-list" class="link-list"></div>
                 </div>
@@ -1104,19 +1104,20 @@
                     </div>
                     <div id="duty-status" class="wl-bulk-status duty-status" role="status"></div>
 
-                    <section class="wl-card">
+                    <details class="wl-card duty-collapse" id="duty-roster-panel">
+                        <summary>
+                            <h3>Quarter Roster</h3>
+                            <span class="duty-count">Who is DO each week</span>
+                        </summary>
                         <div class="wl-card-head">
-                            <div>
-                                <h3>Quarter Roster</h3>
-                                <p class="duty-sub">Who is DO each week. Your own weeks are highlighted.</p>
-                            </div>
+                            <p class="duty-sub">Who is DO each week. Your own weeks are highlighted.</p>
                             <div class="duty-head-actions">
                                 <button type="button" id="duty-undo" class="link-button" disabled title="Undo the last roster or OneNote change">Undo last change</button>
                                 <label class="wl-check"><input type="checkbox" id="duty-only-mine" />Only my days</label>
                             </div>
                         </div>
                         <div id="duty-roster-host" class="worklog-table-host duty-roster-host"></div>
-                    </section>
+                    </details>
 
                     <details class="wl-card wl-bulk" id="duty-tools">
                         <summary>

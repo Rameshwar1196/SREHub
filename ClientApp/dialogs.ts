@@ -1,5 +1,6 @@
 import { getSubject } from './api.js';
 import { byId, el } from './dom.js';
+import { markdownSurface } from './mdHighlight.js';
 import { LearningNode, SubjectSummary } from './learningTypes.js';
 
 type Reader<T> = () => T;
@@ -20,6 +21,7 @@ function openDialog<T>(
     byId('action-hint').textContent = hint;
     byId('action-hint').classList.toggle('hidden', hint.length === 0);
     confirm.textContent = confirmLabel;
+    dialog.classList.remove('wide');
     error.classList.add('hidden');
     fields.replaceChildren();
 
@@ -79,6 +81,7 @@ export interface FormField {
     required?: boolean;
     maxLength?: number;
     rows?: number;
+    highlight?: 'markdown';
     // Keeps the value exactly as typed instead of trimming it.
     raw?: boolean;
 }
@@ -92,6 +95,7 @@ export function askForm(
 ): Promise<Record<string, string> | null> {
     return openDialog(title, hint, confirmLabel, (body) => {
         const controls = new Map<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>();
+        byId('action-dialog').classList.toggle('wide', fields.some((item) => item.kind === 'textarea' && (item.rows ?? 0) > 6));
 
         for (const item of fields) {
             let control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
@@ -124,7 +128,10 @@ export function askForm(
             }
 
             controls.set(item.name, control);
-            body.appendChild(field(item.label, control));
+            const shown = item.highlight === 'markdown' && control instanceof HTMLTextAreaElement
+                ? markdownSurface(control).element
+                : control;
+            body.appendChild(field(item.label, shown));
         }
 
         for (const item of fields) {

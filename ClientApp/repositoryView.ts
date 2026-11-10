@@ -8,6 +8,7 @@ import {
     removeRepository,
     switchRepositoryBranch
 } from './api.js';
+import { askConfirm } from './dialogs.js';
 import { byId, el, showError, showProgress } from './dom.js';
 import { OpenTarget, RepositoryInfo } from './repositoryTypes.js';
 
@@ -150,10 +151,10 @@ function buildCard(info: RepositoryInfo, onChange: (updated: RepositoryInfo | nu
     const remove = async (): Promise<void> => {
         const risky = info.changes > 0 || info.ahead > 0;
         const warning = risky
-            ? `'${info.name}' has uncommitted changes or unpushed commits that will be lost.\n\n`
+            ? `'${info.name}' has uncommitted changes or unpushed commits that will be lost. `
             : '';
 
-        if (!window.confirm(`${warning}Delete the local folder '${info.path}'? This cannot be undone.`)) {
+        if (!await askConfirm('Remove repository', `${warning}Delete the local folder '${info.path}'? This cannot be undone.`, 'Delete')) {
             return;
         }
 

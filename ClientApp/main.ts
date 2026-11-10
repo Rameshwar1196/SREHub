@@ -13,6 +13,7 @@ import { showView } from './navigation.js';
 import { initRepositoriesView } from './repositoryView.js';
 import { initTerminalView } from './terminalView.js';
 import { initTrackerView } from './trackerView.js';
+import { useInAppAlerts } from './toast.js';
 import { initWorkLogView } from './workLogView.js';
 
 function wireNavigation(): void {
@@ -239,6 +240,7 @@ initDutyLogView();
 initSecureFilesView();
 initLinksView();
 initTrackerView();
+useInAppAlerts();
 initImportantFilesView();
 initPersonalFilesView();
 void wireAccount();

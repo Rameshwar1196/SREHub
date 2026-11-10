@@ -1,6 +1,8 @@
 import { deleteLink, getLinkPassword, getLinks, saveLink } from './api.js';
+import { askConfirm } from './dialogs.js';
 import { byId, el, showError, showProgress } from './dom.js';
 import { ImportantLink, LINK_GROUPS } from './linkTypes.js';
+import { showToast, toastCopied } from './toast.js';
 
 const REVEAL_MILLISECONDS = 10_000;
 
@@ -59,6 +61,7 @@ function flash(button: HTMLButtonElement, text: string): void {
 
 export function initLinksView(): void {
     const form = byId<HTMLFormElement>('link-form');
+    const panel = byId<HTMLDetailsElement>('link-panel');
     const formTitle = byId('link-form-title');
     const formError = byId('link-form-error');
     const titleInput = byId<HTMLInputElement>('link-title');
@@ -77,6 +80,23 @@ export function initLinksView(): void {
 
     let links: ImportantLink[] = [];
     let editingId: string | undefined;
+
+    const COLLAPSED_KEY = 'srehub.links.collapsed';
+    const collapsedGroups = new Set<string>();
+
+    try {
+        (JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]') as string[]).forEach((name) => collapsedGroups.add(name));
+    } catch {
+        // A blocked or corrupt store just means every group starts expanded.
+    }
+
+    const saveCollapsed = (): void => {
+        try {
+            localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsedGroups]));
+        } catch {
+            // Remembering the choice is best effort.
+        }
+    };
 
     const fillGroupOptions = (selected?: string): void => {
         const legacy = new Set<string>();
@@ -130,12 +150,14 @@ export function initLinksView(): void {
         submit.textContent = 'Save changes';
         cancel.classList.remove('hidden');
         formError.replaceChildren();
+        panel.open = true;
         form.scrollIntoView({ behavior: 'smooth', block: 'center' });
         titleInput.focus();
     };
 
     const startAdd = (group: string): void => {
         resetForm(group);
+        panel.open = true;
         form.scrollIntoView({ behavior: 'smooth', block: 'center' });
         titleInput.focus();
     };
@@ -155,6 +177,7 @@ export function initLinksView(): void {
                 try {
                     await copyText(link.username);
                     flash(copy, 'Copied');
+                    toastCopied('Username');
                 } catch (failure) {
                     showError(list, (failure as Error).message);
                 }
@@ -199,6 +222,7 @@ export function initLinksView(): void {
                 try {
                     await copyText((await getLinkPassword(link.id)).password);
                     flash(copy, 'Copied');
+                    toastCopied('Password');
                 } catch (failure) {
                     showError(list, (failure as Error).message);
                 }
@@ -234,12 +258,13 @@ export function initLinksView(): void {
         const remove = el('button', 'link-button danger', 'Delete');
         remove.type = 'button';
         remove.addEventListener('click', async () => {
-            if (!window.confirm(`Delete the link '${link.title}'${link.hasPassword ? ' and its saved password' : ''}?`)) {
+            if (!await askConfirm('Delete link', `Delete the link '${link.title}'${link.hasPassword ? ' and its saved password' : ''}?`, 'Delete')) {
                 return;
             }
 
             try {
                 await deleteLink(link.id);
+                showToast(`Deleted '${link.title}'.`, 'success', 'Link deleted');
 
                 if (editingId === link.id) {
                     resetForm();
@@ -271,8 +296,21 @@ export function initLinksView(): void {
         const group = el('section', 'link-group');
         group.style.setProperty('--h', String(hueFor(category)));
 
-        const heading = el('h3', 'link-group-title', category);
-        heading.appendChild(el('span', 'link-count', String(items.length)));
+        const isCollapsed = !searching && collapsedGroups.has(category);
+        group.classList.toggle('collapsed', isCollapsed);
+
+        const heading = el('h3', 'link-group-title');
+        const toggle = el('button', 'link-group-toggle');
+        toggle.type = 'button';
+        toggle.setAttribute('aria-expanded', String(!isCollapsed));
+        toggle.setAttribute('aria-label', `${isCollapsed ? 'Expand' : 'Collapse'} ${category}`);
+        toggle.append(el('i', 'link-group-chevron'), el('span', undefined, category));
+        toggle.addEventListener('click', () => {
+            collapsedGroups.has(category) ? collapsedGroups.delete(category) : collapsedGroups.add(category);
+            saveCollapsed();
+            render();
+        });
+        heading.append(toggle, el('span', 'link-count', String(items.length)));
 
         const add = el('button', 'link-button link-group-add', '+ Add link');
         add.type = 'button';
@@ -280,6 +318,10 @@ export function initLinksView(): void {
         heading.appendChild(add);
 
         group.append(heading);
+
+        if (isCollapsed) {
+            return group;
+        }
 
         if (items.length === 0) {
             group.append(el('p', 'hint', searching ? 'No matches in this group.' : `No ${category} links yet.`));
@@ -337,6 +379,8 @@ export function initLinksView(): void {
             });
 
             resetForm(categoryInput.value);
+            panel.open = false;
+            showToast('Your link was saved.', 'success', 'Saved');
             await load();
         } catch (failure) {
             showError(formError, (failure as Error).message);
@@ -346,7 +390,10 @@ export function initLinksView(): void {
     });
 
     passwordToggle.addEventListener('click', () => setPasswordVisible(passwordInput.type === 'password'));
-    cancel.addEventListener('click', () => resetForm());
+    cancel.addEventListener('click', () => {
+        resetForm();
+        panel.open = false;
+    });
     filter.addEventListener('input', render);
 
     document.querySelector<HTMLButtonElement>('.nav-button[data-target="view-links"]')
