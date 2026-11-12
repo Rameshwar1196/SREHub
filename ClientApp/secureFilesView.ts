@@ -400,6 +400,19 @@ function initVaultView(config: VaultConfig): void {
         }
     };
 
+    const copyButton = (file: SecureFile): HTMLButtonElement => {
+        const button = el('button', 'secure-copy-button');
+        button.type = 'button';
+        button.title = 'Copy text';
+        button.setAttribute('aria-label', `Copy text of ${file.name}`);
+        button.append(el('i', 'secure-copy-icon'));
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            void copyText(file);
+        });
+        return button;
+    };
+
     const editContent = async (file: SecureFile): Promise<void> => {
         let current: string;
 
@@ -411,7 +424,7 @@ function initVaultView(config: VaultConfig): void {
         }
 
         const values = await askForm('Edit content', 'Saving creates a new version; earlier versions stay available.', 'Save', [
-            { name: 'text', label: file.name, kind: 'textarea', value: current, rows: 18, raw: true, required: true, highlight: /\.md$/i.test(file.name) ? 'markdown' : undefined }
+            { name: 'text', label: file.name, kind: 'textarea', value: current, rows: 18, raw: true, copy: true, required: true, highlight: /\.md$/i.test(file.name) ? 'markdown' : undefined }
         ]);
 
         if (!values || values.text === current) {
@@ -489,7 +502,7 @@ function initVaultView(config: VaultConfig): void {
         const download_ = el('button', undefined, 'Download');
         download_.type = 'button';
         download_.addEventListener('click', () => download(file));
-        const edit = el('button', 'secondary', 'Edit content');
+        const edit = el('button', 'secondary', 'View');
         edit.type = 'button';
         edit.addEventListener('click', () => void editContent(file));
         actions.append(download_, edit, menuButton('More \u25BE', 'secondary', fileMenuItems(file)));
@@ -514,7 +527,7 @@ function initVaultView(config: VaultConfig): void {
         notes.append(el('h4', undefined, 'Notes'), el('p', file.notes ? undefined : 'secure-muted', file.notes || 'No notes.'));
 
         const title = el('div', 'secure-file-title');
-        title.append(el('h3', undefined, file.name), el('span', 'secure-muted', `Updated ${formatTime(file.updatedAt)} by ${file.updatedBy}`));
+        title.append(el('h3', undefined, file.name), copyButton(file), el('span', 'secure-muted', `Updated ${formatTime(file.updatedAt)} by ${file.updatedBy}`));
 
         host.replaceChildren(title, actions, grid, notes, el('h4', undefined, 'Versions'), versions);
     };
@@ -618,7 +631,7 @@ function initVaultView(config: VaultConfig): void {
                 event.preventDefault();
                 selectedFile = file.id;
                 void render();
-                openMenu(event.clientX, event.clientY, [{ label: 'Download', onSelect: () => download(file) }, { label: 'Edit content', onSelect: () => void editContent(file) }, ...fileMenuItems(file)]);
+                openMenu(event.clientX, event.clientY, [{ label: 'Download', onSelect: () => download(file) }, { label: 'View', onSelect: () => void editContent(file) }, ...fileMenuItems(file)]);
             });
         }
 

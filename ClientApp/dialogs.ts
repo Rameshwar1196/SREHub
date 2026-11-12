@@ -63,10 +63,39 @@ function openDialog<T>(
     });
 }
 
-function field(label: string, control: HTMLElement): HTMLElement {
+function field(label: string, control: HTMLElement, action?: HTMLElement): HTMLElement {
     const wrapper = el('div', 'field');
-    wrapper.append(el('label', undefined, label), control);
+
+    if (action) {
+        const head = el('div', 'field-head');
+        head.append(el('label', undefined, label), action);
+        wrapper.append(head, control);
+    } else {
+        wrapper.append(el('label', undefined, label), control);
+    }
+
     return wrapper;
+}
+
+function copyAction(source: HTMLTextAreaElement): HTMLButtonElement {
+    const button = el('button', 'secure-copy-button');
+    button.type = 'button';
+    button.title = 'Copy text';
+    button.setAttribute('aria-label', 'Copy text');
+    button.append(el('i', 'secure-copy-icon'));
+    let timer = 0;
+    button.addEventListener('click', () => {
+        void navigator.clipboard.writeText(source.value).then(() => {
+            button.classList.add('copied');
+            button.title = 'Copied';
+            window.clearTimeout(timer);
+            timer = window.setTimeout(() => {
+                button.classList.remove('copied');
+                button.title = 'Copy text';
+            }, 1500);
+        });
+    });
+    return button;
 }
 
 export interface FormField {
@@ -82,6 +111,8 @@ export interface FormField {
     maxLength?: number;
     rows?: number;
     highlight?: 'markdown';
+    // Shows a small copy button beside the label of a textarea.
+    copy?: boolean;
     // Keeps the value exactly as typed instead of trimming it.
     raw?: boolean;
 }
@@ -131,7 +162,7 @@ export function askForm(
             const shown = item.highlight === 'markdown' && control instanceof HTMLTextAreaElement
                 ? markdownSurface(control).element
                 : control;
-            body.appendChild(field(item.label, shown));
+            body.appendChild(field(item.label, shown, item.copy && control instanceof HTMLTextAreaElement ? copyAction(control) : undefined));
         }
 
         for (const item of fields) {
