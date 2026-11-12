@@ -1,3 +1,6 @@
+# Local secrets such as the AI key - never commit.
+appsettings.Local.json
+
 bin/
 obj/
 node_modules/

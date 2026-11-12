@@ -331,6 +331,40 @@ export function importTrackedItems(items: Array<Omit<TrackedItem, 'id'>>): Promi
     return post<{ items: Array<Omit<TrackedItem, 'id'>> }, { added: number; skipped: number }>('/api/tracker/import', { items });
 }
 
+export interface AssistantStep {
+    tool: string;
+    summary: string;
+}
+
+export interface AssistantPending {
+    tool: string;
+    summary: string;
+    details: string;
+}
+
+export interface AssistantReply {
+    conversationId: string;
+    reply: string | null;
+    steps: AssistantStep[];
+    pending: AssistantPending | null;
+}
+
+export function getAssistantStatus(): Promise<{ configured: boolean; provider: string; model: string }> {
+    return get('/api/assistant/status');
+}
+
+export function sendAssistantMessage(conversationId: string | null, message: string): Promise<AssistantReply> {
+    return post<{ conversationId: string | null; message: string }, AssistantReply>('/api/assistant/chat', { conversationId, message });
+}
+
+export function resolveAssistantAction(conversationId: string, approve: boolean): Promise<AssistantReply> {
+    return post<{ conversationId: string; approve: boolean }, AssistantReply>('/api/assistant/approve', { conversationId, approve });
+}
+
+export function resetAssistant(conversationId: string | null): Promise<{ ok: boolean }> {
+    return post<{ conversationId: string | null }, { ok: boolean }>('/api/assistant/reset', { conversationId });
+}
+
 export function getLinks(): Promise<ImportantLink[]> {
     return get('/api/links');
 }

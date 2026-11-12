@@ -13,6 +13,7 @@ import { showView } from './navigation.js';
 import { initRepositoriesView } from './repositoryView.js';
 import { initTerminalView } from './terminalView.js';
 import { initTrackerView } from './trackerView.js';
+import { initAssistant } from './assistantView.js';
 import { useInAppAlerts } from './toast.js';
 import { initWorkLogView } from './workLogView.js';
 
@@ -240,6 +241,7 @@ initDutyLogView();
 initSecureFilesView();
 initLinksView();
 initTrackerView();
+initAssistant();
 useInAppAlerts();
 initImportantFilesView();
 initPersonalFilesView();

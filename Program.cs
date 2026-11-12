@@ -27,6 +27,7 @@ if (args.Length > 0 && args[0].Equals("hash-password", StringComparison.OrdinalI
 }
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: false);
 
 if (args.Length > 0 && args[0].Equals("set-password", StringComparison.OrdinalIgnoreCase))
 {
@@ -68,6 +69,9 @@ builder.Services.AddSingleton<WorkLogService>();
 builder.Services.AddSingleton<DutyLogService>();
 builder.Services.AddSingleton<ImportantLinkService>();
 builder.Services.AddSingleton<TrackedWorkService>();
+builder.Services.AddSingleton(builder.Configuration.GetSection(AiOptions.SectionName).Get<AiOptions>() ?? new AiOptions());
+builder.Services.AddHttpClient("ai", client => client.Timeout = TimeSpan.FromSeconds(90));
+builder.Services.AddSingleton<AssistantService>();
 builder.Services.AddSingleton<ImportantFileService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddKeyedSingleton("operations", (provider, _) => new SecureFileService(
@@ -742,6 +746,22 @@ tracker.MapDelete("/{id}", (string id, TrackedWorkService service, CancellationT
         await service.DeleteAsync(id, cancellationToken);
         return new { ok = true };
     }));
+
+var assistant = app.MapGroup("/api/assistant");
+
+assistant.MapGet("/status", (AssistantService service) => Results.Ok(service.Status));
+
+assistant.MapPost("/chat", (AssistantChatRequest request, HttpContext context, AssistantService service, CancellationToken cancellationToken) =>
+    RunAsync(() => service.ChatAsync(request.ConversationId, request.Message, context.User.FindFirstValue(ClaimTypes.Email) ?? "unknown", context.User.FindFirstValue(ClaimTypes.Name) ?? string.Empty, cancellationToken)));
+
+assistant.MapPost("/approve", (AssistantResolveRequest request, HttpContext context, AssistantService service, CancellationToken cancellationToken) =>
+    RunAsync(() => service.ResolveAsync(request.ConversationId, request.Approve, context.User.FindFirstValue(ClaimTypes.Email) ?? "unknown", cancellationToken)));
+
+assistant.MapPost("/reset", (AssistantResetRequest request, HttpContext context, AssistantService service) =>
+{
+    service.Reset(request.ConversationId, context.User.FindFirstValue(ClaimTypes.Email) ?? "unknown");
+    return Results.Ok(new { ok = true });
+});
 
 var terminal = app.MapGroup("/api/terminal");
 
