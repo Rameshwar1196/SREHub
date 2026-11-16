@@ -167,6 +167,18 @@ public sealed partial class LearningLibrary
         return (fullPath, GetContentType(fullPath));
     }
 
+    public string ResolveDesktopFile(string subjectId, string relativePath)
+    {
+        var (fullPath, _) = ResolveRawFile(subjectId, relativePath);
+
+        if (ClassifyKind(fullPath) is not ("word" or "excel" or "powerpoint"))
+        {
+            throw new InvalidOperationException("Only Word, Excel and PowerPoint files can be opened in the desktop app.");
+        }
+
+        return fullPath;
+    }
+
     // Markdown links are relative to the file that contains them and may cross into another subject.
     public LinkTarget ResolveLink(string subjectId, string fromPath, string href)
     {

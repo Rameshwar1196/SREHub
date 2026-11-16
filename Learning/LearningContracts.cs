@@ -108,4 +108,10 @@ public sealed class RenameSubjectRequest
     public string NewName { get; set; } = string.Empty;
 }
 
+public sealed class OpenFileRequest
+{
+    public string SubjectId { get; set; } = string.Empty;
+    public string Path { get; set; } = string.Empty;
+}
+
 public sealed record EntryLocation(string SubjectId, string Path);

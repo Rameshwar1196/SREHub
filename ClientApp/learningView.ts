@@ -8,6 +8,7 @@ import {
     getSubject,
     getSubjects,
     moveEntry,
+    openLearningFileInApp,
     renameEntry,
     renameSubject,
     resolveLink,
@@ -21,6 +22,7 @@ import { bindCollapse, byId, el, formatBytes, showError } from './dom.js';
 import { EntryLocation, Flashcard, LearningFileContent, LearningNode, SubjectDetail, SubjectSummary } from './learningTypes.js';
 import { showView } from './navigation.js';
 import { officeKindOf, renderOffice } from './officeViewer.js';
+import { showToast } from './toast.js';
 
 const KIND_ICON: Record<string, string> = {
     folder: '[dir]',
@@ -497,6 +499,14 @@ function renderFile(file: LearningFileContent): void {
         bar.appendChild(open);
     }
 
+    const desktopApp = ({ word: 'Word', powerpoint: 'PowerPoint' } as Record<string, string>)[file.kind];
+
+    if (desktopApp) {
+        bar.append(
+            actionButton(`Edit in ${desktopApp}`, () => void openInDesktopApp(file, desktopApp)),
+            actionButton('Refresh', () => void openFile(file.path)));
+    }
+
     bar.append(
         actionButton('Rename', () => void renameEntryAction(file.subjectId, file.path, false)),
         actionButton('Move', () => void moveEntryAction(file.subjectId, file.path, false)),
@@ -549,6 +559,15 @@ function renderFile(file: LearningFileContent): void {
     }
 
     view.appendChild(el('p', 'hint', `${file.name} (${formatBytes(file.size)}) cannot be previewed. Use "Open raw".`));
+}
+
+async function openInDesktopApp(file: LearningFileContent, appName: string): Promise<void> {
+    try {
+        await openLearningFileInApp(file.subjectId, file.path);
+        showToast(`Opened in ${appName}. Save your changes there, then click Refresh here.`, 'info');
+    } catch (error) {
+        showToast((error as Error).message, 'error');
+    }
 }
 
 async function removeEntry(subjectId: string, path: string, isDirectory: boolean): Promise<void> {

@@ -262,6 +262,14 @@ learning.MapGet("/raw", (string subject, string path, LearningLibrary library) =
     }
 });
 
+learning.MapPost("/open", (OpenFileRequest request, LearningLibrary library) =>
+    RunAsync(() =>
+    {
+        var path = library.ResolveDesktopFile(request.SubjectId, request.Path);
+        OfficeLauncher.Open(path);
+        return Task.FromResult(new { ok = true });
+    }));
+
 learning.MapPost("/notes", (SaveNoteRequest request, LearningLibrary library, CancellationToken cancellationToken) =>
     RunAsync(() => library.SaveNoteAsync(request, cancellationToken)));
 

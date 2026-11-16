@@ -187,6 +187,10 @@ export function getFlashcards(subjectId?: string): Promise<Flashcard[]> {
     return get(`/api/learning/flashcards${subject}`);
 }
 
+export function openLearningFileInApp(subjectId: string, path: string): Promise<{ ok: boolean }> {
+    return post<{ subjectId: string; path: string }, { ok: boolean }>('/api/learning/open', { subjectId, path });
+}
+
 export function setProgress(request: ProgressRequest): Promise<{ ok: boolean }> {
     return post<ProgressRequest, { ok: boolean }>('/api/learning/progress', request);
 }
