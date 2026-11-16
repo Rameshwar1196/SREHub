@@ -10,6 +10,7 @@ import { ImportantLink, ImportantLinkInput } from './linkTypes.js';
 import { TerminalEvent, TerminalSessionInfo } from './terminalTypes.js';
 import { MathsBook, MathsLibrary, MathsNote } from './mathsTypes.js';
 import { WorkLogEntry, WorkLogYear } from './workLogTypes.js';
+import { DailyPlanSave, DailyPlanView } from './dailyPlanTypes.js';
 import { DutyEntry, DutyRoster, DutyYear } from './dutyLogTypes.js';
 import { SecureAuditEntry, SecureFile, SecureFileMeta, SecureFolder, SecureTrash, SecureTree } from './secureTypes.js';
 import {
@@ -268,6 +269,34 @@ export async function saveWorkLogEntry(entry: WorkLogEntry): Promise<WorkLogEntr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(entry)
     }));
+}
+
+export function getDailyPlan(date: string): Promise<DailyPlanView> {
+    return get(`/api/dailyplan/${encodeURIComponent(date)}`);
+}
+
+export async function saveDailyPlan(date: string, save: DailyPlanSave): Promise<DailyPlanView> {
+    return unwrap<DailyPlanView>(await fetch(`/api/dailyplan/${encodeURIComponent(date)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(save)
+    }));
+}
+
+export async function setDailyPlanIterationStart(date: string, start: string): Promise<DailyPlanView> {
+    return unwrap<DailyPlanView>(await fetch(`/api/dailyplan/${encodeURIComponent(date)}/iteration-start`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ start })
+    }));
+}
+
+export function carryOverDailyPlan(date: string): Promise<DailyPlanView> {
+    return post<Record<string, never>, DailyPlanView>(`/api/dailyplan/${encodeURIComponent(date)}/carry-over`, {});
+}
+
+export function pushDailyPlanToWorkLog(date: string): Promise<WorkLogEntry> {
+    return post<Record<string, never>, WorkLogEntry>(`/api/dailyplan/${encodeURIComponent(date)}/push-worklog`, {});
 }
 
 export function getDutyYear(year: number): Promise<DutyYear> {

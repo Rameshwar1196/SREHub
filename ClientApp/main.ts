@@ -1,5 +1,6 @@
 import { getCurrentUser, getLearningInfo, signOut } from './api.js';
 import { bindCollapse, byId } from './dom.js';
+import { initDailyPlanView } from './dailyPlanView.js';
 import { initDutyLogView } from './dutyLogView.js';
 import { initPersonalFilesView, initSecureFilesView } from './secureFilesView.js';
 import { initLearningView } from './learningView.js';
@@ -10,6 +11,7 @@ import { initMathsLibraryView } from './mathsLibraryView.js';
 import { initMathsBookView } from './mathsBookView.js';
 import { wireLicenseViews } from './licenseView.js';
 import { showView } from './navigation.js';
+import { initViewTabs } from './viewTabs.js';
 import { initRepositoriesView } from './repositoryView.js';
 import { initTerminalView } from './terminalView.js';
 import { initTrackerView } from './trackerView.js';
@@ -224,6 +226,7 @@ function wireHome(): void {
     document.querySelector('.brand')?.addEventListener('click', () => showView('view-home'));
 }
 
+initViewTabs();
 wireNavigation();
 wireHome();
 wireNavGroups();
@@ -237,6 +240,7 @@ initMathsLibraryView();
 initMathsBookView();
 initRepositoriesView();
 initWorkLogView();
+initDailyPlanView();
 initDutyLogView();
 initSecureFilesView();
 initLinksView();

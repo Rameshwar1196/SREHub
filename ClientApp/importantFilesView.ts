@@ -9,6 +9,7 @@ import {
 import { askConfirm, askText } from './dialogs.js';
 import { byId, el, formatBytes, showError, showProgress } from './dom.js';
 import { menuButton } from './menu.js';
+import { onViewShown } from './navigation.js';
 import { markdownSurface } from './mdHighlight.js';
 import { renderMarkdown } from './markdown.js';
 import { officeKindOf, renderOffice } from './officeViewer.js';
@@ -281,11 +282,10 @@ export function initImportantFilesView(): void {
         onSelect: () => void createFile(type.name)
     }))));
 
-    document.querySelector<HTMLButtonElement>('.nav-button[data-target="view-files"]')
-        ?.addEventListener('click', () => {
-            showProgress(list, 'Loading files...');
-            void load();
-        });
+    onViewShown('view-files', () => {
+        showProgress(list, 'Loading files...');
+        void load();
+    });
 
     if (location.hash === '#files') {
         void load();

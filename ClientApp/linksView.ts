@@ -2,6 +2,7 @@ import { deleteLink, getLinkPassword, getLinks, saveLink } from './api.js';
 import { askConfirm } from './dialogs.js';
 import { byId, el, showError, showProgress } from './dom.js';
 import { ImportantLink, LINK_GROUPS } from './linkTypes.js';
+import { onViewShown } from './navigation.js';
 import { showToast, toastCopied } from './toast.js';
 
 const REVEAL_MILLISECONDS = 10_000;
@@ -396,8 +397,7 @@ export function initLinksView(): void {
     });
     filter.addEventListener('input', render);
 
-    document.querySelector<HTMLButtonElement>('.nav-button[data-target="view-links"]')
-        ?.addEventListener('click', () => void load());
+    onViewShown('view-links', () => void load());
 
     resetForm();
 

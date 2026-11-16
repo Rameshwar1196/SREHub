@@ -30,10 +30,7 @@
             <nav class="nav" aria-label="Primary">
                 <section class="nav-group" data-group="learning">
                     <button type="button" class="nav-group-head" aria-expanded="true" title="Learning">
-                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v14H6.5A2.5 2.5 0 0 0 4 19.5z" />
-                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20v4H6.5A2.5 2.5 0 0 1 4 19.5z" />
-                        </svg>
+                        <img class="nav-group-icon-img" src="img/learning-logo.svg" alt="" aria-hidden="true" />
                         <span class="nav-group-title">Learning</span>
                         <svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true">
                             <path d="m7 10 5 5 5-5" />
@@ -125,12 +122,7 @@
 
                 <section class="nav-group" data-group="other">
                     <button type="button" class="nav-group-head" aria-expanded="true" title="My Hub">
-                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                            <rect x="4" y="4" width="7" height="7" rx="1.5" />
-                            <rect x="13" y="4" width="7" height="7" rx="1.5" />
-                            <rect x="4" y="13" width="7" height="7" rx="1.5" />
-                            <rect x="13" y="13" width="7" height="7" rx="1.5" />
-                        </svg>
+                        <img class="nav-group-icon-img" src="img/myhub-logo.svg" alt="" aria-hidden="true" />
                         <span class="nav-group-title">My Hub</span>
                         <svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true">
                             <path d="m7 10 5 5 5-5" />
@@ -156,9 +148,18 @@
                             </span>
                         </button>
 
+                        <button type="button" class="nav-button" data-target="view-dailyplan"
+                            title="Daily plan">
+                            <span class="nav-index">3</span>
+                            <span class="nav-text">
+                                <span class="nav-title">Daily plan</span>
+                                <span class="nav-sub">Targets, progress and end-of-day update</span>
+                            </span>
+                        </button>
+
                         <button type="button" class="nav-button" data-target="view-duty"
                             title="DO shift and OneNote">
-                            <span class="nav-index">3</span>
+                            <span class="nav-index">4</span>
                             <span class="nav-text">
                                 <span class="nav-title">DO shift &amp; OneNote</span>
                                 <span class="nav-sub">Duty roster and OneNote updates</span>
@@ -166,22 +167,14 @@
                         </button>
 
                         <button type="button" class="nav-button" data-target="view-links"
-                            title="Important links">
-                            <span class="nav-index">4</span>
+                            data-views="view-links view-files" title="Library">
+                            <span class="nav-index">5</span>
                             <span class="nav-text">
-                                <span class="nav-title">Important links</span>
-                                <span class="nav-sub">Quick shortcuts</span>
+                                <span class="nav-title">Library</span>
+                                <span class="nav-sub">Links and documents</span>
                             </span>
                         </button>
 
-                        <button type="button" class="nav-button" data-target="view-files"
-                            title="Important files">
-                            <span class="nav-index">5</span>
-                            <span class="nav-text">
-                                <span class="nav-title">Important files</span>
-                                <span class="nav-sub">PDF, Word, Excel, PowerPoint</span>
-                            </span>
-                        </button>
                         <button type="button" class="nav-button" data-target="view-personal"
                             title="Personal vault">
                             <span class="nav-index">6</span>
@@ -358,6 +351,7 @@
                         <button type="button" class="home-card" data-go="view-duty"><strong>Duty roster</strong><span>On-call, shifts and handovers</span></button>
                         <button type="button" class="home-card" data-go="view-secure"><strong>Secure files</strong><span>Encrypted configs and keys</span></button>
                         <button type="button" class="home-card" data-go="view-worklog"><strong>Work log</strong><span>Track what you did today</span></button>
+                        <button type="button" class="home-card" data-go="view-dailyplan"><strong>Daily plan</strong><span>Plan targets and close the day</span></button>
                     </div>
                 </div>
             </section>
@@ -876,6 +870,109 @@
                         <div id="files-viewer" class="panel files-viewer">
                             <p class="hint">Select a file to open it here.</p>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View: Daily plan -->
+            <section id="view-dailyplan" class="view">
+                <div class="page page-wide wl dp">
+                    <header class="wl-banner">
+                        <div>
+                            <h2 id="dp-heading">Daily Plan</h2>
+                            <p>Plan targets for the two-week iteration, track them with sub tasks and close each day with an update.</p>
+                        </div>
+
+                        <div class="wl-banner-actions">
+                            <div class="wl-year-stepper" role="group" aria-label="Day">
+                                <button type="button" id="dp-prev" aria-label="Previous day">&lsaquo;</button>
+                                <input type="date" id="dp-date" class="dp-date" aria-label="Date" />
+                                <button type="button" id="dp-next" aria-label="Next day">&rsaquo;</button>
+                            </div>
+                            <button type="button" id="dp-today" class="link-button">Today</button>
+                            <a id="dp-export" class="link-button" href="#" download title="Export the iteration shown on the right">Export iteration CSV</a>
+                        </div>
+                    </header>
+
+                    <div class="wl-layout">
+                        <div class="wl-main">
+                            <section class="wl-card">
+                                <div class="wl-card-head">
+                                    <h3>Iteration targets</h3>
+                                    <span id="dp-save-state" class="worklog-state" role="status"></span>
+                                </div>
+
+                                <div class="dp-iteration">
+                                    <button type="button" id="dp-iter-prev" class="link-button" title="Previous iteration" aria-label="Previous iteration">&lsaquo;</button>
+                                    <div class="dp-iteration-info">
+                                        <strong id="dp-iter-label"></strong>
+                                        <span id="dp-iter-hint" class="hint"></span>
+                                    </div>
+                                    <button type="button" id="dp-iter-next" class="link-button" title="Next iteration" aria-label="Next iteration">&rsaquo;</button>
+                                    <label class="dp-iteration-start" for="dp-iter-start">Iteration starts
+                                        <input type="date" id="dp-iter-start" title="Change the first day of this two-week iteration" />
+                                    </label>
+                                </div>
+
+                                <div id="dp-progress" class="dp-progress"></div>
+
+                                <div id="dp-carry" class="dp-carry" hidden>
+                                    <span id="dp-carry-text"></span>
+                                    <button type="button" id="dp-carry-button" class="link-button">Carry over</button>
+                                </div>
+
+                                <form id="dp-add-form" class="dp-add-form" autocomplete="off">
+                                    <input type="text" id="dp-new-title" maxlength="200" placeholder="Add a target for this iteration (for example Infra update) and press Enter" aria-label="New target" />
+                                    <select id="dp-new-priority" aria-label="Priority"></select>
+                                    <select id="dp-new-days" aria-label="Planned days"></select>
+                                    <button type="submit">Add</button>
+                                </form>
+
+                                <div id="dp-targets-host" class="dp-targets"></div>
+                            </section>
+
+                            <section class="wl-card">
+                                <div class="wl-card-head">
+                                    <h3>Day update</h3>
+                                    <div class="wl-actions">
+                                        <span id="dp-push-status" class="wl-bulk-status" role="status"></span>
+                                        <button type="button" id="dp-push" class="link-button"
+                                            title="Copy the What I achieved lines into the Micro-mgmt daily work summary for this date (replaces the summary there)">Push to work log</button>
+                                    </div>
+                                </div>
+
+                                <div class="field">
+                                    <label for="dp-focus">Focus of the day</label>
+                                    <input type="text" id="dp-focus" maxlength="200" placeholder="The one outcome that makes today a success" />
+                                </div>
+                                <div class="field">
+                                    <label for="dp-endofday">What I achieved <span class="hint">(targets marked Done are added here automatically)</span></label>
+                                    <textarea id="dp-endofday" rows="4" maxlength="1000"></textarea>
+                                </div>
+                                <div class="row">
+                                    <div class="field">
+                                        <label for="dp-blockers">Blockers and risks</label>
+                                        <textarea id="dp-blockers" rows="3" maxlength="1000"></textarea>
+                                    </div>
+                                    <div class="field">
+                                        <label for="dp-tomorrow">Plan for tomorrow</label>
+                                        <textarea id="dp-tomorrow" rows="3" maxlength="1000"></textarea>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+
+                        <aside class="wl-side">
+                            <section class="wl-card">
+                                <div class="wl-card-head">
+                                    <h3>Iteration progress</h3>
+                                    <span id="dp-side-range" class="hint"></span>
+                                </div>
+                                <div id="dp-side-percent" class="dp-big-percent">0%</div>
+                                <p id="dp-side-stats" class="hint"></p>
+                                <div id="dp-side-list" class="dp-side-list"></div>
+                            </section>
+                        </aside>
                     </div>
                 </div>
             </section>

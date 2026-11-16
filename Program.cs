@@ -66,6 +66,7 @@ if (OperatingSystem.IsWindows())
 builder.Services.AddSingleton<TerminalService>();
 builder.Services.AddSingleton<RepositoryService>();
 builder.Services.AddSingleton<WorkLogService>();
+builder.Services.AddSingleton<DailyPlanService>();
 builder.Services.AddSingleton<DutyLogService>();
 builder.Services.AddSingleton<ImportantLinkService>();
 builder.Services.AddSingleton<TrackedWorkService>();
@@ -465,6 +466,37 @@ workLog.MapGet("/export", async (string period, WorkLogService service, Cancella
         return Results.BadRequest(new { error = exception.Message });
     }
 });
+
+var dailyPlan = app.MapGroup("/api/dailyplan");
+
+dailyPlan.MapGet("/export", async (string date, DailyPlanService service, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var csv = await service.ExportCsvAsync(date, cancellationToken);
+        var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true).GetPreamble().Concat(Encoding.UTF8.GetBytes(csv)).ToArray();
+        return Results.File(bytes, "text/csv", $"iteration-plan-{date}.csv");
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { error = exception.Message });
+    }
+});
+
+dailyPlan.MapGet("/{date}", (string date, DailyPlanService service, CancellationToken cancellationToken) =>
+    RunAsync(() => service.GetAsync(date, cancellationToken)));
+
+dailyPlan.MapPut("/{date}", (string date, DailyPlanSave save, DailyPlanService service, CancellationToken cancellationToken) =>
+    RunAsync(() => service.SaveAsync(date, save, cancellationToken)));
+
+dailyPlan.MapPut("/{date}/iteration-start", (string date, IterationStartRequest request, DailyPlanService service, CancellationToken cancellationToken) =>
+    RunAsync(() => service.SetIterationStartAsync(date, request.Start, cancellationToken)));
+
+dailyPlan.MapPost("/{date}/carry-over", (string date, DailyPlanService service, CancellationToken cancellationToken) =>
+    RunAsync(() => service.CarryOverAsync(date, cancellationToken)));
+
+dailyPlan.MapPost("/{date}/push-worklog", (string date, DailyPlanService service, CancellationToken cancellationToken) =>
+    RunAsync(() => service.PushToWorkLogAsync(date, cancellationToken)));
 
 var dutyLog = app.MapGroup("/api/dutylog");
 

@@ -15,6 +15,13 @@
     <PackageReference Include="Markdig" Version="0.37.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="tests\**" />
+    <Content Remove="tests\**" />
+    <EmbeddedResource Remove="tests\**" />
+    <None Remove="tests\**" />
+  </ItemGroup>
+
   <!-- The study library is data, not build input; it is only carried along on publish. -->
   <ItemGroup>
     <Content Remove="learning-content\**" />
