@@ -12,7 +12,7 @@ import { MathsBook, MathsLibrary, MathsNote } from './mathsTypes.js';
 import { WorkLogEntry, WorkLogYear } from './workLogTypes.js';
 import { DailyPlanSave, DailyPlanView } from './dailyPlanTypes.js';
 import { DutyEntry, DutyRoster, DutyYear } from './dutyLogTypes.js';
-import { SecureAuditEntry, SecureFile, SecureFileMeta, SecureFolder, SecureTrash, SecureTree } from './secureTypes.js';
+import { ProjectDetails, SecureAuditEntry, SecureFile, SecureFileMeta, SecureFolder, SecureTrash, SecureTree } from './secureTypes.js';
 import {
     CreateSubjectRequest,
     EntryLocation,
@@ -491,15 +491,15 @@ export function getSecureTree(base = SECURE_BASE): Promise<SecureTree> {
     return get(`${base}/tree`);
 }
 
-export function createSecureFolder(name: string, parentId: string | null, base = SECURE_BASE): Promise<SecureFolder> {
-    return post<{ name: string; parentId: string | null }, SecureFolder>(`${base}/folders`, { name, parentId });
+export function createSecureFolder(name: string, parentId: string | null, base = SECURE_BASE, project: ProjectDetails = {}): Promise<SecureFolder> {
+    return post<{ name: string; parentId: string | null } & ProjectDetails, SecureFolder>(`${base}/folders`, { name, parentId, ...project });
 }
 
-export async function updateSecureFolder(id: string, name: string, parentId: string | null, base = SECURE_BASE): Promise<SecureFolder> {
+export async function updateSecureFolder(id: string, name: string, parentId: string | null, base = SECURE_BASE, project: ProjectDetails = {}): Promise<SecureFolder> {
     return unwrap<SecureFolder>(await fetch(`${base}/folders/${encodeURIComponent(id)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, parentId })
+        body: JSON.stringify({ name, parentId, ...project })
     }));
 }
 

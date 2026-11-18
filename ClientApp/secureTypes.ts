@@ -1,8 +1,20 @@
+export interface ProjectLink {
+    label: string;
+    url: string;
+}
+
+export interface ProjectDetails {
+    dedicated?: boolean;
+    links?: ProjectLink[];
+}
+
 export interface SecureFolder {
     id: string;
     name: string;
     parentId?: string | null;
     deletedAt?: string | null;
+    dedicated?: boolean;
+    links?: ProjectLink[];
 }
 
 export interface SecureFileVersion {

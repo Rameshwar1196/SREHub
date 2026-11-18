@@ -1,11 +1,19 @@
 namespace Aras.SreHub.Models;
 
+public sealed class ProjectLink
+{
+    public string Label { get; set; } = string.Empty;
+    public string Url { get; set; } = string.Empty;
+}
+
 public sealed class SecureFolder
 {
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string? ParentId { get; set; }
     public DateTimeOffset? DeletedAt { get; set; }
+    public bool Dedicated { get; set; }
+    public List<ProjectLink> Links { get; set; } = [];
 }
 
 public sealed class SecureFileVersion
@@ -82,6 +90,8 @@ public sealed class SecureFolderRequest
 {
     public string Name { get; set; } = string.Empty;
     public string? ParentId { get; set; }
+    public bool? Dedicated { get; set; }
+    public List<ProjectLink>? Links { get; set; }
 }
 
 public sealed class SecureFileMetaRequest

@@ -573,10 +573,10 @@ void MapVault(RouteGroupBuilder secure)
         }));
 
     secure.MapPost("/folders", (SecureFolderRequest request, HttpContext context, SecureFileService service, CancellationToken cancellationToken) =>
-        RunAsync(() => service.CreateFolderAsync(request.Name, request.ParentId, CurrentUser(context), cancellationToken)));
+        RunAsync(() => service.CreateFolderAsync(request.Name, request.ParentId, CurrentUser(context), cancellationToken, request.Dedicated ?? false, request.Links)));
 
     secure.MapPut("/folders/{id}", (string id, SecureFolderRequest request, HttpContext context, SecureFileService service, CancellationToken cancellationToken) =>
-        RunAsync(() => service.UpdateFolderAsync(id, request.Name, request.ParentId, CurrentUser(context), cancellationToken)));
+        RunAsync(() => service.UpdateFolderAsync(id, request.Name, request.ParentId, CurrentUser(context), cancellationToken, request.Dedicated, request.Links)));
 
     secure.MapDelete("/folders/{id}", (string id, HttpContext context, SecureFileService service, CancellationToken cancellationToken) =>
         RunAsync(async () =>

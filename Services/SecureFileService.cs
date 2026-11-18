@@ -17,6 +17,9 @@ public sealed class SecureFileService
     private const int MaxFileNameLength = 200;
     private const int MaxFolderNameLength = 100;
     private const int MaxNotesLength = 2000;
+    private const int MaxProjectLinks = 5;
+    private const int MaxLinkLabelLength = 60;
+    private const int MaxLinkUrlLength = 500;
 
     private static readonly string[] Infrastructures = ["NPRD", "PROD", "TEST"];
     private static readonly string[] Environments = ["DEV", "SIT", "TEST", "STG", "PROD", "N/A"];
@@ -79,25 +82,35 @@ public sealed class SecureFileService
         }
     }
 
-    public async Task<SecureFolder> CreateFolderAsync(string name, string? parentId, string user, CancellationToken cancellationToken)
+    public async Task<SecureFolder> CreateFolderAsync(string name, string? parentId, string user, CancellationToken cancellationToken, bool dedicated = false, List<ProjectLink>? links = null)
     {
         var clean = CleanFolderName(name);
+        var parent = NullIfEmpty(parentId);
+
+        if (dedicated && parent is not null)
+        {
+            throw new ArgumentException("Only a top-level folder can be a dedicated project.");
+        }
+
+        var projectLinks = dedicated ? CleanLinks(links) : [];
 
         return await MutateAsync(cancellationToken, store =>
         {
             RequireFolder(store, parentId);
             RequireUniqueFolder(store, parentId, clean, null);
 
-            var folder = new SecureFolder { Id = NewId(), Name = clean, ParentId = NullIfEmpty(parentId) };
+            var folder = new SecureFolder { Id = NewId(), Name = clean, ParentId = parent, Dedicated = dedicated, Links = projectLinks };
             store.Folders.Add(folder);
             Audit(user, "create-folder", PathOf(store, folder.Id));
             return folder;
         });
     }
 
-    public async Task<SecureFolder> UpdateFolderAsync(string id, string name, string? parentId, string user, CancellationToken cancellationToken)
+    // Null dedicated or links leave the stored values as they are; a folder moved below another one stops being a dedicated project.
+    public async Task<SecureFolder> UpdateFolderAsync(string id, string name, string? parentId, string user, CancellationToken cancellationToken, bool? dedicated = null, List<ProjectLink>? links = null)
     {
         var clean = CleanFolderName(name);
+        var cleanLinks = links is null ? null : CleanLinks(links);
 
         return await MutateAsync(cancellationToken, store =>
         {
@@ -109,13 +122,30 @@ public sealed class SecureFileService
                 throw new ArgumentException("A folder cannot be moved into itself.");
             }
 
+            if (dedicated == true && target is not null)
+            {
+                throw new ArgumentException("Only a top-level folder can be a dedicated project.");
+            }
+
             RequireFolder(store, target);
             RequireUniqueFolder(store, target, clean, id);
 
             var before = PathOf(store, id);
             folder.Name = clean;
             folder.ParentId = target;
-            Audit(user, "rename-folder", $"{before} -> {PathOf(store, id)}");
+            folder.Dedicated = target is null && (dedicated ?? folder.Dedicated);
+            folder.Links = folder.Dedicated ? cleanLinks ?? folder.Links : [];
+
+            if (before != PathOf(store, id))
+            {
+                Audit(user, "rename-folder", $"{before} -> {PathOf(store, id)}");
+            }
+
+            if (dedicated.HasValue || links is not null)
+            {
+                Audit(user, "update-project", PathOf(store, id));
+            }
+
             return folder;
         });
     }
@@ -718,6 +748,41 @@ public sealed class SecureFileService
         PathOf(store, file.FolderId).TrimEnd('/') + "/" + file.Name;
 
     private static string NewId() => Guid.NewGuid().ToString("N");
+
+    private static List<ProjectLink> CleanLinks(List<ProjectLink>? links)
+    {
+        var cleaned = new List<ProjectLink>();
+
+        foreach (var link in links ?? [])
+        {
+            var label = (link.Label ?? string.Empty).Trim();
+            var url = (link.Url ?? string.Empty).Trim();
+
+            if (label.Length == 0 && url.Length == 0)
+            {
+                continue;
+            }
+
+            if (label.Length == 0 || label.Length > MaxLinkLabelLength)
+            {
+                throw new ArgumentException($"Give each link a label of up to {MaxLinkLabelLength} characters.");
+            }
+
+            if (url.Length > MaxLinkUrlLength)
+            {
+                throw new ArgumentException($"Links are limited to {MaxLinkUrlLength} characters.");
+            }
+
+            if (url.Length > 0 && !(Uri.TryCreate(url, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)))
+            {
+                throw new ArgumentException("Links must start with http:// or https://.");
+            }
+
+            cleaned.Add(new ProjectLink { Label = label, Url = url });
+        }
+
+        return cleaned.Count > MaxProjectLinks ? throw new ArgumentException($"A project can have up to {MaxProjectLinks} links.") : cleaned;
+    }
 
     private static string? NullIfEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
