@@ -67,8 +67,19 @@ builder.Services.AddSingleton<TerminalService>();
 builder.Services.AddSingleton<RepositoryService>();
 builder.Services.AddSingleton<WorkLogService>();
 builder.Services.AddSingleton<DailyPlanService>();
+builder.Services.AddSingleton(builder.Configuration.GetSection(AzureDevOpsOptions.SectionName).Get<AzureDevOpsOptions>() ?? new AzureDevOpsOptions());
+builder.Services.AddSingleton(builder.Configuration.GetSection(SrePortalOptions.SectionName).Get<SrePortalOptions>() ?? new SrePortalOptions());
+builder.Services.AddHttpClient(AzureDevOpsWorkItemSource.ClientName, client => client.Timeout = TimeSpan.FromSeconds(60));
+builder.Services.AddSingleton<IWorkItemSource, AzureDevOpsWorkItemSource>();
+builder.Services.AddSingleton<IWorkItemSource, SrePortalWorkItemSource>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<WorkItemSyncHub>();
+builder.Services.AddHostedService<WorkItemSyncWorker>();
 builder.Services.AddSingleton<DutyLogService>();
 builder.Services.AddSingleton<ImportantLinkService>();
+builder.Services.AddHttpClient(FrameCheckService.ClientName, client => client.Timeout = TimeSpan.FromSeconds(12))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { UseCookies = false, AllowAutoRedirect = true, MaxAutomaticRedirections = 5 });
+builder.Services.AddSingleton<FrameCheckService>();
 builder.Services.AddSingleton<TrackedWorkService>();
 builder.Services.AddSingleton(builder.Configuration.GetSection(AiOptions.SectionName).Get<AiOptions>() ?? new AiOptions());
 builder.Services.AddHttpClient("ai", client => client.Timeout = TimeSpan.FromSeconds(90));
@@ -491,6 +502,16 @@ dailyPlan.MapGet("/export", async (string date, DailyPlanService service, Cancel
     }
 });
 
+dailyPlan.MapGet("/sync-status", (WorkItemSyncHub sync) =>
+    Results.Ok(sync.Last.RanAt.Length > 0 || sync.Last.Error.Length > 0 ? sync.Last : new WorkItemSyncResult { Configured = sync.IsConfigured }));
+
+dailyPlan.MapPost("/{date}/sync", (string date, string? source, DailyPlanService service, WorkItemSyncHub sync, CancellationToken cancellationToken) =>
+    RunAsync(async () =>
+    {
+        var result = await sync.SyncAsync(onlyDue: false, cancellationToken, source);
+        return new DailyPlanSyncView { View = await service.GetAsync(date, cancellationToken), Sync = result };
+    }));
+
 dailyPlan.MapGet("/{date}", (string date, DailyPlanService service, CancellationToken cancellationToken) =>
     RunAsync(() => service.GetAsync(date, cancellationToken)));
 
@@ -755,6 +776,9 @@ links.MapPost("/", (ImportantLinkRequest link, ImportantLinkService service, Can
 
 links.MapPut("/{id}", (string id, ImportantLinkRequest link, ImportantLinkService service, CancellationToken cancellationToken) =>
     RunAsync(() => service.SaveAsync(id, link, cancellationToken)));
+
+links.MapGet("/{id}/frame-check", (string id, HttpContext context, FrameCheckService service, CancellationToken cancellationToken) =>
+    RunAsync(() => service.CheckAsync(id, $"{context.Request.Scheme}://{context.Request.Host}", cancellationToken)));
 
 links.MapGet("/{id}/password", (string id, ImportantLinkService service, CancellationToken cancellationToken) =>
     RunAsync(async () => new LinkPasswordResponse(await service.RevealPasswordAsync(id, cancellationToken))));

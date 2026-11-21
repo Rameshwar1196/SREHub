@@ -133,10 +133,61 @@ Each `key_name` becomes a secret holding the selected variant value; characters 
 replaced with `-`. Identical values report `Unchanged` so no new version is created. "Preview only" is on
 by default and reports `WouldUpdate` without writing.
 
+## Daily plan targets and DO handover
+
+- A work item only counts as an iteration **target** once you choose its **days**. Items without days (including synced ones) are listed under "Not planned" and are left out of the progress percentage.
+- **ACF** is a status for items that are waiting and are not targets: choosing it clears the days and locks the Days box. They are listed apart from the targets.
+- **Carry over** asks for confirmation and moves only **In progress**, **Blocked** and **ACF** targets from the earlier iteration into the current one. Completed (Done), not started (Todo) and cancelled targets stay where they are, and a completed target is never moved by a sync.
+- On the Duty Log, setting **Handover** to **Completed** on a DO day writes `Worked as DO in Japan shift` (or `India shift`, or `Japan and India shifts`) into that day's Micro-mgmt daily work summary, replacing an earlier "Working as DO ..." line. Changing it away from Completed removes only that line, and **Push to work log** in the Daily Plan keeps it. **Work in progress** changes nothing in Micro-mgmt. The retired **Given** value reads as no handover.
+- For a Japan shift (including Japan + India), Completed also shows a reminder with a link to https://app.protrak.io/ to fill in the Japan workshift. India-only days show "Have you filled the India workshift? For now it is not required."
+- Marking a Daily Plan target **Done** adds its title to the Micro-mgmt summary of the day it was finished (keeping what is already there); reopening it takes the title out again. Targets closed by a sync are not added automatically.
+- Targets are colour-coded by origin: Azure DevOps blue, SRE Portal pink, created by hand orange.
+
+## Daily plan: Azure DevOps sync
+
+Work items assigned to you become iteration targets automatically, so nothing has to be added by hand.
+Add your personal access token (scope **Work Items: Read**) to `appsettings.Local.json`, which is not committed,
+and restart:
+
+```json
+"AzureDevOps": { "PersonalAccessToken": "<token>" }
+```
+
+`Organization`, `Project`, `SyncMinutes` (how often the background check runs, default 30, minimum 5, `0` turns
+the background sync off) live in `appsettings.json`. Optional
+`WorkItemTypes`, `ClosedStates`, `RemovedStates` and `ActiveStates` arrays narrow the query or adjust state names.
+
+- The first sync of an iteration imports your open items plus those closed since the iteration's start date; the
+  last sync runs on the iteration's last day to close out what finished. It runs automatically on those days
+  only (a restart counts as a new first sync) and with **Sync Azure DevOps** on any day.
+- A new item becomes a `#id Title` target in the current iteration (a closed one goes into the iteration of its
+  closed date) with its priority and a link back. Closing it upstream marks the target Done with the closed date.
+- After the first import only an upstream state change touches a target, so manual edits here stay.
+- **Remove** on a synced target stops it from coming back. Untouched targets that are no longer assigned to you are dropped.
+
+### SRE Portal support incidents
+
+Support Incidents assigned to you in MyInnovator (the system behind the Internal Portal) are synced the same way,
+read-only, through MyInnovator's OData API with the existing Innovator sign-in. Put your own credentials in
+`appsettings.Local.json` (git-ignored), never in `appsettings.json`:
+
+```json
+"SrePortal": { "Username": "<login>", "Password": "<password>", "AssigneeName": "<name as shown in Assigned To>" }
+```
+
+`BaseUrl`, `Database`, `ItemType` (`Support Incident`), `Classification` (`Infrastructure`, empty for all) and
+`SyncMinutes` live in `appsettings.json`. States: `In Work` becomes In progress, `Awaiting customer feedback` becomes
+**ACF** (no days, not a target), `In Review` stays Todo and `Closed` becomes Done with its closed date; override with
+`ActiveStates` / `AcfStates` / `ClosedStates`.
+Incidents show as `SI-123456 Summary` with an "SRE Portal" label and link, and go into the iteration of the day they
+are first synced (closed ones into their closed date's iteration).
+
 ## API
 
 | Endpoint | Purpose |
 |---|---|
+| `POST /api/dailyplan/{date}/sync` | pull assigned Azure DevOps work items into the iteration |
+| `GET /api/dailyplan/sync-status` | result of the last sync |
 | `POST /api/auth/login` | sign in, issues the session cookie |
 | `POST /api/auth/logout` | sign out |
 | `GET /api/auth/me` | current user |

@@ -18,7 +18,13 @@ public sealed class IterationTarget
     public string Outcome { get; set; } = string.Empty;
     public string CompletedOn { get; set; } = string.Empty;
     public string CarriedFrom { get; set; } = string.Empty;
+    public string ExternalId { get; set; } = string.Empty;
+    public string ExternalState { get; set; } = string.Empty;
+    public string ExternalIteration { get; set; } = string.Empty;
     public List<SubTask> SubTasks { get; set; } = [];
+
+    // A target counts toward the iteration once it has days planned; Carried, Cancelled and ACF items never count.
+    public bool CountsAsTarget => PlannedDays is > 0 && Status is not ("Carried" or "Cancelled" or "ACF");
 
     public int Percent =>
         Status == "Done" ? 100
@@ -32,18 +38,17 @@ public sealed class IterationPlan
     public string End { get; set; } = string.Empty;
     public List<IterationTarget> Targets { get; set; } = [];
 
-    // Carried targets moved to a later iteration, so they do not count here.
     public int Progress
     {
         get
         {
-            var counted = Targets.Where(target => target.Status != "Carried").ToList();
+            var counted = Targets.Where(target => target.CountsAsTarget).ToList();
             var weight = counted.Sum(Weight);
             return weight == 0 ? 0 : (int)Math.Round(counted.Sum(target => target.Percent * Weight(target)) / weight);
         }
     }
 
-    private static double Weight(IterationTarget target) => target.PlannedDays ?? 1;
+    private static double Weight(IterationTarget target) => target.PlannedDays ?? 0;
 }
 
 public sealed class DailyPlanDay
@@ -61,6 +66,7 @@ public sealed class DailyPlanSave
 {
     public DailyPlanDay Day { get; set; } = new();
     public List<IterationTarget> Targets { get; set; } = [];
+    public List<string> RemovedExternalIds { get; set; } = [];
 }
 
 public sealed class DailyPlanView
@@ -79,4 +85,6 @@ public sealed class DailyPlanStore
 {
     public List<DailyPlanDay> Days { get; set; } = [];
     public List<IterationPlan> Iterations { get; set; } = [];
+    public List<string> DismissedExternalIds { get; set; } = [];
+    public int SyncSchema { get; set; }
 }

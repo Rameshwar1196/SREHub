@@ -25,7 +25,12 @@ function stack(): HTMLElement {
     return host;
 }
 
-export function showToast(message: string, kind: ToastKind = 'info', title?: string): void {
+export interface ToastLink {
+    label: string;
+    href: string;
+}
+
+export function showToast(message: string, kind: ToastKind = 'info', title?: string, link?: ToastLink, durationMs?: number): void {
     const toast = el('div', `toast toast-${kind}`);
     toast.setAttribute('role', kind === 'error' ? 'alert' : 'status');
 
@@ -39,12 +44,16 @@ export function showToast(message: string, kind: ToastKind = 'info', title?: str
     const text = el('div', 'toast-text');
     text.append(el('strong', undefined, title ?? TITLE[kind]), el('span', undefined, message));
 
+    if (link) {
+        text.appendChild(Object.assign(el('a', 'toast-link', link.label), { href: link.href, target: '_blank', rel: 'noopener noreferrer' }));
+    }
+
     const close = el('button', 'toast-close', '\u00D7');
     close.type = 'button';
     close.setAttribute('aria-label', 'Dismiss');
 
     const bar = el('i', 'toast-bar');
-    const duration = DURATION[kind];
+    const duration = durationMs ?? DURATION[kind];
     bar.style.animationDuration = `${duration}ms`;
 
     toast.append(badge, text, close, bar);

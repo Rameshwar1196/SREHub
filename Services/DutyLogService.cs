@@ -13,7 +13,9 @@ public sealed class DutyLogService
     private const int MaxNames = 100;
     private const int MaxDailyBackups = 60;
 
-    private static readonly string[] HandoverValues = ["Given", "Received", "Pending", "N/A"];
+    private static readonly string[] HandoverValues = ["Completed", "Work in progress", "Received", "Pending", "N/A"];
+    private const string HandoverCompleted = "Completed";
+    private const string RetiredHandover = "Given";
     private static readonly string[] OneNoteValues = ["Updated", "Pending", "N/A"];
 
     private static readonly JsonSerializerOptions SerializerOptions = new()
@@ -25,12 +27,14 @@ public sealed class DutyLogService
 
     private readonly string _storePath;
     private readonly string _rosterPath;
+    private readonly WorkLogService? _workLog;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
-    public DutyLogService(IWebHostEnvironment environment)
+    public DutyLogService(IWebHostEnvironment environment, WorkLogService? workLog = null)
     {
         _storePath = Path.Combine(environment.ContentRootPath, "App_Data", "dutylog.json");
         _rosterPath = Path.Combine(environment.ContentRootPath, "App_Data", "dutyroster.json");
+        _workLog = workLog;
     }
 
     public async Task<DutyYear> GetYearAsync(int year, CancellationToken cancellationToken)
@@ -52,11 +56,13 @@ public sealed class DutyLogService
     public async Task<DutyEntry> SaveAsync(string date, DutyEntry incoming, CancellationToken cancellationToken)
     {
         var entry = Normalize(date, incoming);
+        DutyEntry? previous;
 
         await _gate.WaitAsync(cancellationToken);
         try
         {
             var all = await LoadAsync(cancellationToken);
+            previous = all.FirstOrDefault(existing => existing.Date == entry.Date);
             all.RemoveAll(existing => existing.Date == entry.Date);
 
             if (!entry.IsEmpty)
@@ -71,7 +77,22 @@ public sealed class DutyLogService
             _gate.Release();
         }
 
+        await UpdateWorkLogAsync(previous, entry, cancellationToken);
         return entry;
+    }
+
+    // A completed handover records the DO shift in the Micro-mgmt daily work summary; leaving Completed takes that line out again.
+    private async Task UpdateWorkLogAsync(DutyEntry? previous, DutyEntry entry, CancellationToken cancellationToken)
+    {
+        var completed = entry.Handover == HandoverCompleted;
+
+        if (_workLog is null || (!completed && previous?.Handover != HandoverCompleted))
+        {
+            return;
+        }
+
+        var line = completed ? DoWorkSummary.LineFor(entry.DoShift) : string.Empty;
+        await _workLog.UpdateSummaryAsync(entry.Date, summary => DoWorkSummary.Apply(summary, line), cancellationToken);
     }
 
     public async Task<DutyRoster> GetRosterAsync(CancellationToken cancellationToken)
@@ -293,7 +314,11 @@ public sealed class DutyLogService
         }
 
         await using var stream = File.OpenRead(_storePath);
-        return await JsonSerializer.DeserializeAsync<List<DutyEntry>>(stream, SerializerOptions, cancellationToken) ?? [];
+        var entries = await JsonSerializer.DeserializeAsync<List<DutyEntry>>(stream, SerializerOptions, cancellationToken) ?? [];
+
+        // "Given" is no longer a handover value; entries that still carry it read as having none and are cleaned up the next time they are saved.
+        entries.Where(entry => entry.Handover == RetiredHandover).ToList().ForEach(entry => entry.Handover = string.Empty);
+        return entries;
     }
 
     // Keeps the previous version next to the file and the first version of each day under App_Data/backups.

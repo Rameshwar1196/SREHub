@@ -10,7 +10,7 @@ import { ImportantLink, ImportantLinkInput } from './linkTypes.js';
 import { TerminalEvent, TerminalSessionInfo } from './terminalTypes.js';
 import { MathsBook, MathsLibrary, MathsNote } from './mathsTypes.js';
 import { WorkLogEntry, WorkLogYear } from './workLogTypes.js';
-import { DailyPlanSave, DailyPlanView } from './dailyPlanTypes.js';
+import { DailyPlanSave, DailyPlanSyncView, DailyPlanView, WorkItemSyncResult } from './dailyPlanTypes.js';
 import { DutyEntry, DutyRoster, DutyYear } from './dutyLogTypes.js';
 import { ProjectDetails, SecureAuditEntry, SecureFile, SecureFileMeta, SecureFolder, SecureTrash, SecureTree } from './secureTypes.js';
 import {
@@ -303,6 +303,14 @@ export function pushDailyPlanToWorkLog(date: string): Promise<WorkLogEntry> {
     return post<Record<string, never>, WorkLogEntry>(`/api/dailyplan/${encodeURIComponent(date)}/push-worklog`, {});
 }
 
+export function syncDailyPlan(date: string, source: 'ado' | 'sre'): Promise<DailyPlanSyncView> {
+    return post<Record<string, never>, DailyPlanSyncView>(`/api/dailyplan/${encodeURIComponent(date)}/sync?source=${source}`, {});
+}
+
+export function getDailyPlanSyncStatus(): Promise<WorkItemSyncResult> {
+    return get('/api/dailyplan/sync-status');
+}
+
 export function getDutyYear(year: number): Promise<DutyYear> {
     return get(`/api/dutylog/year?year=${year}`);
 }
@@ -420,6 +428,16 @@ export function deleteLink(id: string): Promise<{ ok: boolean }> {
 
 export function getLinkPassword(id: string): Promise<{ password: string }> {
     return get(`/api/links/${encodeURIComponent(id)}/password`);
+}
+
+export interface LinkFrameCheck {
+    embeddable: boolean;
+    reason: string;
+    finalUrl: string;
+}
+
+export function checkLinkFrame(id: string): Promise<LinkFrameCheck> {
+    return get(`/api/links/${encodeURIComponent(id)}/frame-check`);
 }
 
 export interface ImportantFile {

@@ -14,6 +14,9 @@ export interface IterationTarget {
     outcome: string;
     completedOn: string;
     carriedFrom: string;
+    externalId?: string;
+    externalState?: string;
+    externalIteration?: string;
     subTasks: SubTask[];
 }
 
@@ -40,4 +43,20 @@ export interface DailyPlanView {
 export interface DailyPlanSave {
     day: DailyPlanDay;
     targets: IterationTarget[];
+    removedExternalIds?: string[];
+}
+
+export interface WorkItemSyncResult {
+    configured: boolean;
+    ranAt: string;
+    added: number;
+    updated: number;
+    removed: number;
+    skipped: number;
+    error: string;
+}
+
+export interface DailyPlanSyncView {
+    view: DailyPlanView;
+    sync: WorkItemSyncResult;
 }

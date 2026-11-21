@@ -1,11 +1,13 @@
-import { deleteLink, getLinkPassword, getLinks, saveLink } from './api.js';
+import { checkLinkFrame, deleteLink, getLinkPassword, getLinks, saveLink } from './api.js';
 import { askConfirm } from './dialogs.js';
 import { byId, el, showError, showProgress } from './dom.js';
 import { ImportantLink, LINK_GROUPS } from './linkTypes.js';
 import { onViewShown } from './navigation.js';
 import { showToast, toastCopied } from './toast.js';
+import { openInSideWindow, openInWorkTab } from './workWindow.js';
 
 const REVEAL_MILLISECONDS = 10_000;
+const ADD_TITLE = 'Add a link to manage your work';
 
 function hueFor(text: string): number {
     let hash = 0;
@@ -78,9 +80,91 @@ export function initLinksView(): void {
     const cancel = byId<HTMLButtonElement>('link-cancel');
     const filter = byId<HTMLInputElement>('link-filter');
     const list = byId('link-list');
+    const viewer = byId('link-viewer');
+    const viewerName = byId('link-viewer-name');
+    const viewerHost = byId('link-viewer-host');
+    const viewerBody = byId('link-viewer-body');
+    const viewerReload = byId<HTMLButtonElement>('link-viewer-reload');
+    const viewerTab = byId<HTMLButtonElement>('link-viewer-tab');
+    const viewerSide = byId<HTMLButtonElement>('link-viewer-side');
+    const viewerClose = byId<HTMLButtonElement>('link-viewer-close');
 
     let links: ImportantLink[] = [];
     let editingId: string | undefined;
+    let viewing: ImportantLink | undefined;
+    let viewToken = 0;
+
+    const closeViewer = (): void => {
+        viewToken++;
+        viewing = undefined;
+        viewer.hidden = true;
+        viewerBody.replaceChildren();
+    };
+
+    const showFrame = (link: ImportantLink): void => {
+        const frame = el('iframe', 'link-viewer-frame');
+        frame.title = link.title;
+        frame.src = link.url;
+        frame.referrerPolicy = 'no-referrer';
+        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads');
+        viewerBody.replaceChildren(frame, el('p', 'hint link-viewer-note', 'If the page stays blank, the site refuses to be shown here. Use Work tab instead.'));
+    };
+
+    const showBlocked = (link: ImportantLink, reason: string, canTry: boolean): void => {
+        const message = el('div', 'link-viewer-blocked');
+        message.append(
+            el('strong', undefined, `${link.title} can't be shown inside SreHub`),
+            el('p', undefined, reason),
+            el('p', 'hint', 'Open it in your work tab or the side window instead. The sign-in and your session stay with the site.'));
+
+        const buttons = el('div', 'link-viewer-actions');
+        const tab = el('button', undefined, 'Open in work tab');
+        tab.type = 'button';
+        tab.addEventListener('click', () => openInWorkTab(link.url));
+        const side = el('button', 'link-button', 'Open in side window');
+        side.type = 'button';
+        side.addEventListener('click', () => openInSideWindow(link.url));
+        buttons.append(tab, side);
+
+        if (canTry) {
+            const attempt = el('button', 'link-button', 'Try anyway');
+            attempt.type = 'button';
+            attempt.addEventListener('click', () => showFrame(link));
+            buttons.append(attempt);
+        }
+
+        message.append(buttons);
+        viewerBody.replaceChildren(message);
+    };
+
+    const openViewer = async (link: ImportantLink): Promise<void> => {
+        const token = ++viewToken;
+        viewing = link;
+        viewer.hidden = false;
+        viewerName.textContent = link.title;
+        viewerHost.textContent = hostOf(link.url);
+        showProgress(viewerBody, `Checking whether ${hostOf(link.url)} allows being shown here...`);
+        viewer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        try {
+            const check = await checkLinkFrame(link.id);
+
+            if (token !== viewToken) {
+                return;
+            }
+
+            check.embeddable ? showFrame(link) : showBlocked(link, check.reason, false);
+        } catch (failure) {
+            if (token === viewToken) {
+                showBlocked(link, `It could not be checked: ${(failure as Error).message}`, true);
+            }
+        }
+    };
+
+    viewerReload.addEventListener('click', () => viewing && void openViewer(viewing));
+    viewerTab.addEventListener('click', () => viewing && openInWorkTab(viewing.url));
+    viewerSide.addEventListener('click', () => viewing && openInSideWindow(viewing.url));
+    viewerClose.addEventListener('click', closeViewer);
 
     const COLLAPSED_KEY = 'srehub.links.collapsed';
     const collapsedGroups = new Set<string>();
@@ -129,7 +213,7 @@ export function initLinksView(): void {
         setPasswordVisible(false);
         passwordInput.placeholder = '';
         clearPasswordRow.classList.add('hidden');
-        formTitle.textContent = 'Add a link';
+        formTitle.textContent = ADD_TITLE;
         submit.textContent = 'Add link';
         cancel.classList.add('hidden');
         formError.replaceChildren();
@@ -151,13 +235,6 @@ export function initLinksView(): void {
         submit.textContent = 'Save changes';
         cancel.classList.remove('hidden');
         formError.replaceChildren();
-        panel.open = true;
-        form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        titleInput.focus();
-    };
-
-    const startAdd = (group: string): void => {
-        resetForm(group);
         panel.open = true;
         form.scrollIntoView({ behavior: 'smooth', block: 'center' });
         titleInput.focus();
@@ -249,9 +326,30 @@ export function initLinksView(): void {
             open.href = link.url;
             open.target = '_blank';
             open.rel = 'noopener noreferrer';
+            open.title = 'Open in your work tab (Ctrl+click for a new tab)';
+            open.addEventListener('click', (event) => {
+                if (event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+                    event.preventDefault();
+                    openInWorkTab(link.url);
+                }
+            });
         }
 
         const actions = el('div', 'link-actions');
+
+        if (isWebUrl(link.url)) {
+            const here = el('button', 'link-button link-here', 'Open here');
+            here.type = 'button';
+            here.title = 'Show the site inside SreHub, if it allows that';
+            here.addEventListener('click', () => void openViewer(link));
+
+            const side = el('button', 'link-button', 'Side');
+            side.type = 'button';
+            side.title = 'Open in a narrow window next to SreHub';
+            side.addEventListener('click', () => openInSideWindow(link.url));
+            actions.append(here, side);
+        }
+
         const edit = el('button', 'link-button', 'Edit');
         edit.type = 'button';
         edit.addEventListener('click', () => startEdit(link));
@@ -266,6 +364,10 @@ export function initLinksView(): void {
             try {
                 await deleteLink(link.id);
                 showToast(`Deleted '${link.title}'.`, 'success', 'Link deleted');
+
+                if (viewing?.id === link.id) {
+                    closeViewer();
+                }
 
                 if (editingId === link.id) {
                     resetForm();
@@ -312,11 +414,6 @@ export function initLinksView(): void {
             render();
         });
         heading.append(toggle, el('span', 'link-count', String(items.length)));
-
-        const add = el('button', 'link-button link-group-add', '+ Add link');
-        add.type = 'button';
-        add.addEventListener('click', () => startAdd(category));
-        heading.appendChild(add);
 
         group.append(heading);
 

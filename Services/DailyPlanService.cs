@@ -5,10 +5,10 @@ using Aras.SreHub.Models;
 
 namespace Aras.SreHub.Services;
 
-public sealed class DailyPlanService
+public sealed partial class DailyPlanService
 {
     public static readonly string[] Priorities = ["P1", "P2", "P3"];
-    public static readonly string[] Statuses = ["Todo", "InProgress", "Done", "Blocked", "Carried"];
+    public static readonly string[] Statuses = ["Todo", "InProgress", "Done", "Blocked", "Carried", "Cancelled", "ACF"];
     public static readonly double[] PlannedDayValues = [0.5, 1, 2, 3, 4, 5];
 
     private const int IterationDays = 14;
@@ -48,12 +48,31 @@ public sealed class DailyPlanService
         var parsed = ParseDate(date);
         var day = NormalizeDay(Format(parsed), incoming.Day ?? new DailyPlanDay());
         var targets = NormalizeTargets(incoming.Targets ?? [], day.Date);
+        DailyPlanView view;
+        var finished = new List<(string Date, string Title)>();
+        var reopened = new List<(string Date, string Title)>();
 
         await _gate.WaitAsync(cancellationToken);
         try
         {
             var store = await LoadAsync(cancellationToken);
             var window = WindowFor(parsed, store.Iterations);
+            var before = store.Iterations.FirstOrDefault(existing => existing.Start == Format(window.Start))?.Targets
+                .GroupBy(target => target.Id).ToDictionary(group => group.Key, group => group.First()) ?? [];
+            var known = store.Iterations.SelectMany(iteration => iteration.Targets)
+                .Where(target => target.ExternalId.Length > 0)
+                .GroupBy(target => target.Id)
+                .ToDictionary(group => group.Key, group => group.First());
+
+            foreach (var target in targets.Where(target => known.ContainsKey(target.Id)))
+            {
+                target.ExternalId = known[target.Id].ExternalId;
+                target.ExternalState = known[target.Id].ExternalState;
+                target.ExternalIteration = known[target.Id].ExternalIteration;
+            }
+
+            var removed = (incoming.RemovedExternalIds ?? []).Where(id => id.Length is > 0 and <= 64).ToHashSet();
+            store.DismissedExternalIds.AddRange(removed.Where(id => !store.DismissedExternalIds.Contains(id)));
 
             store.Days.RemoveAll(existing => existing.Date == day.Date);
             if (!day.IsEmpty)
@@ -64,20 +83,52 @@ public sealed class DailyPlanService
             var stored = store.Iterations.FirstOrDefault(existing => existing.Start == Format(window.Start));
             if (stored is not null)
             {
-                stored.Targets = targets;
+                // Targets synced in the background after this page was loaded must survive a save from the older copy.
+                var kept = stored.Targets
+                    .Where(target => target.ExternalId.Length > 0 && !removed.Contains(target.ExternalId) && targets.All(saved => saved.Id != target.Id))
+                    .ToList();
+
+                stored.Targets = [.. targets, .. kept];
             }
             else if (targets.Count > 0)
             {
                 store.Iterations.Add(new IterationPlan { Start = Format(window.Start), End = Format(window.End), Targets = targets });
             }
 
+            foreach (var target in targets)
+            {
+                before.TryGetValue(target.Id, out var previous);
+
+                if (target.Status == "Done" && previous?.Status != "Done" && target.CompletedOn.Length > 0)
+                {
+                    finished.Add((target.CompletedOn, target.Title));
+                }
+                else if (target.Status != "Done" && previous is { Status: "Done", CompletedOn.Length: > 0 })
+                {
+                    reopened.Add((previous.CompletedOn, target.Title));
+                }
+            }
+
             await PersistAsync(store, cancellationToken);
-            return BuildView(store, parsed);
+            view = BuildView(store, parsed);
         }
         finally
         {
             _gate.Release();
         }
+
+        // A target marked Done is listed in the Micro-mgmt summary of the day it was finished; reopening it takes the line out again.
+        foreach (var (completedOn, title) in finished)
+        {
+            await _workLog.UpdateSummaryAsync(completedOn, summary => DoWorkSummary.AddSegment(summary, title), cancellationToken);
+        }
+
+        foreach (var (completedOn, title) in reopened)
+        {
+            await _workLog.UpdateSummaryAsync(completedOn, summary => DoWorkSummary.RemoveSegment(summary, title), cancellationToken);
+        }
+
+        return view;
     }
 
     public async Task<DailyPlanView> SetIterationStartAsync(string date, string start, CancellationToken cancellationToken)
@@ -124,7 +175,7 @@ public sealed class DailyPlanService
         }
     }
 
-    // Open targets from earlier iterations are copied here and marked Carried there, so a second call finds nothing left to carry.
+    // In progress, Blocked and ACF targets from earlier iterations are copied here and marked Carried there, so a second call finds nothing left to carry.
     public async Task<DailyPlanView> CarryOverAsync(string date, CancellationToken cancellationToken)
     {
         var parsed = ParseDate(date);
@@ -140,7 +191,7 @@ public sealed class DailyPlanService
 
             foreach (var source in EarlierIterations(store, window.Start))
             {
-                foreach (var item in source.Targets.Where(IsOpen).ToList())
+                foreach (var item in source.Targets.Where(IsCarryable).ToList())
                 {
                     if (target.Targets.Count >= MaxTargets)
                     {
@@ -156,9 +207,13 @@ public sealed class DailyPlanService
                         PlannedDays = item.PlannedDays,
                         Url = item.Url,
                         CarriedFrom = item.CarriedFrom.Length > 0 ? item.CarriedFrom : source.Start,
+                        ExternalId = item.ExternalId,
+                        ExternalState = item.ExternalState,
+                        ExternalIteration = item.ExternalIteration,
                         SubTasks = item.SubTasks.Select(subTask => new SubTask { Id = NewId(), Title = subTask.Title, Done = subTask.Done }).ToList()
                     });
                     item.Status = "Carried";
+                    item.ExternalId = string.Empty;
                 }
             }
 
@@ -201,7 +256,8 @@ public sealed class DailyPlanService
     {
         var parsed = ParseDate(date);
         var key = Format(parsed);
-        var day = (await LoadAsync(cancellationToken)).Days.FirstOrDefault(existing => existing.Date == key);
+        var store = await LoadAsync(cancellationToken);
+        var day = store.Days.FirstOrDefault(existing => existing.Date == key);
 
         var lines = (day?.EndOfDay ?? string.Empty)
             .Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
@@ -209,9 +265,17 @@ public sealed class DailyPlanService
             .Where(line => line.Length > 0)
             .ToList();
 
+        var completedToday = store.Iterations
+            .SelectMany(iteration => iteration.Targets)
+            .Where(target => target.Status == "Done" && target.CompletedOn == key)
+            .Select(target => target.Title)
+            .Where(title => title.Length > 0 && !lines.Contains(title, StringComparer.OrdinalIgnoreCase));
+
+        lines.AddRange(completedToday);
+
         if (lines.Count == 0)
         {
-            throw new ArgumentException("Fill in \"What I achieved\" (or mark a target Done) before pushing to the work log.");
+            throw new ArgumentException("Fill in \"What I achieved today\" (or mark a target Done) before pushing to the work log.");
         }
 
         var summary = string.Join("; ", lines);
@@ -223,6 +287,9 @@ public sealed class DailyPlanService
 
         var month = await _workLog.GetMonthAsync(parsed.ToString("yyyy-MM", CultureInfo.InvariantCulture), cancellationToken);
         var existing = month.Entries.FirstOrDefault(entry => entry.Date == key);
+
+        // The line the Duty Log wrote for a completed DO handover survives the replacement.
+        summary = DoWorkSummary.Apply(summary, DoWorkSummary.ExistingLine(existing?.Summary ?? string.Empty));
 
         var entry = new WorkLogEntry
         {
@@ -258,7 +325,7 @@ public sealed class DailyPlanService
             Day = store.Days.FirstOrDefault(day => day.Date == Format(date)) ?? new DailyPlanDay { Date = Format(date) },
             Iteration = store.Iterations.FirstOrDefault(iteration => iteration.Start == start)
                 ?? new IterationPlan { Start = start, End = Format(window.End) },
-            CarryOverCount = EarlierIterations(store, window.Start).SelectMany(iteration => iteration.Targets).Count(IsOpen)
+            CarryOverCount = EarlierIterations(store, window.Start).SelectMany(iteration => iteration.Targets).Count(IsCarryable)
         };
     }
 
@@ -287,7 +354,8 @@ public sealed class DailyPlanService
             .OrderBy(iteration => iteration.Start, StringComparer.Ordinal);
     }
 
-    private static bool IsOpen(IterationTarget target) => target.Status != "Done" && target.Status != "Carried";
+    // Only work that is still going moves on; completed work stays in the iteration where it was finished.
+    private static bool IsCarryable(IterationTarget target) => target.Status is "InProgress" or "Blocked" or "ACF";
 
     private static DateTime ParseDate(string date)
     {
@@ -357,7 +425,7 @@ public sealed class DailyPlanService
         {
             subTasks.ForEach(subTask => subTask.Done = true);
         }
-        else if (status != "Carried" && subTasks.Count > 0 && subTasks.All(subTask => subTask.Done))
+        else if (status is not ("Carried" or "Cancelled" or "ACF") && subTasks.Count > 0 && subTasks.All(subTask => subTask.Done))
         {
             status = "Done";
         }
@@ -375,7 +443,7 @@ public sealed class DailyPlanService
             Title = Text(target.Title, MaxTitleLength, "Target"),
             Priority = Choice(target.Priority, Priorities, "P2", "Priority"),
             Status = status,
-            PlannedDays = target.PlannedDays,
+            PlannedDays = status == "ACF" ? null : target.PlannedDays,
             Url = url,
             Outcome = Text(target.Outcome, MaxTextLength, "Outcome"),
             CompletedOn = completedOn,

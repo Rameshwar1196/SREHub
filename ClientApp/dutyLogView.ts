@@ -5,8 +5,11 @@ import { DutyEntry, DutyRoster, DutyRosterBlock, OneNoteIteration } from './duty
 import { askConfirm } from './dialogs.js';
 import { loadScript } from './officeViewer.js';
 import { select, svg, textInput } from './workLogView.js';
+import { showToast } from './toast.js';
 
-const HANDOVER = ['Given', 'Received', 'Pending', 'N/A'];
+const JAPAN_WORKSHIFT_URL = 'https://app.protrak.io/';
+
+const HANDOVER = ['Completed', 'Work in progress'];
 const ONENOTE = ['Updated', 'Pending', 'N/A'];
 
 const JAPAN = { label: 'Japan', time: '5:30 AM - 1:30 PM' };
@@ -619,6 +622,7 @@ export function initDutyLogView(): void {
     };
 
     const save = (patch: Partial<DutyEntry>, date: string, stateLabel: HTMLElement): void => {
+        const wasCompleted = entries.get(date)?.handover === 'Completed';
         const next = withDefaults({ ...(entries.get(date) ?? blankEntry(date)), ...patch });
 
         if (isBlank(next)) {
@@ -635,8 +639,17 @@ export function initDutyLogView(): void {
             .then(() => {
                 failures.delete(date);
                 stateLabel.classList.add('saved');
-                stateLabel.textContent = 'Saved';
+                stateLabel.textContent = next.handover === 'Completed' ? 'Saved - added to Micro-mgmt'
+                    : wasCompleted ? 'Saved - removed from Micro-mgmt'
+                        : 'Saved';
                 refreshStatus();
+
+                if (next.handover === 'Completed' && !wasCompleted && next.doShift.includes(JAPAN.label)) {
+                    showToast('If not, please update it here:', 'info', 'Have you filled the Japan workshift?',
+                        { label: 'Open Protrak', href: JAPAN_WORKSHIFT_URL }, 12000);
+                } else if (next.handover === 'Completed' && !wasCompleted && next.doShift.includes(INDIA.label)) {
+                    showToast('For now it is not required.', 'info', 'Have you filled the India workshift?', undefined, 8000);
+                }
             })
             .catch((failure: Error) => {
                 failures.add(date);

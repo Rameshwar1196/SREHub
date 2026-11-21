@@ -45,6 +45,10 @@ public sealed class ImportantLinkService
             .ToList();
     }
 
+    public async Task<string> GetUrlAsync(string id, CancellationToken cancellationToken) =>
+        (await LoadAsync(cancellationToken)).Find(existing => existing.Id == id)?.Url
+            ?? throw new FileNotFoundException("That link no longer exists.");
+
     public async Task<string> RevealPasswordAsync(string id, CancellationToken cancellationToken)
     {
         var links = await LoadAsync(cancellationToken);

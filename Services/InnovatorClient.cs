@@ -294,6 +294,29 @@ public sealed class InnovatorClient : IDisposable
             : tree;
     }
 
+    // Read-only OData GET; `relative` is either a path under /Server/odata/ or a full nextLink on the same server.
+    public async Task<string> GetODataAsync(string relative, CancellationToken cancellationToken)
+    {
+        var url = relative.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? relative : $"{BaseUrl}/Server/odata/{relative}";
+
+        if (!url.StartsWith(BaseUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Refusing to follow a link that leaves the Innovator server.");
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
+        request.Headers.TryAddWithoutValidation("DATABASE", Database);
+        request.Headers.Accept.ParseAdd("application/json");
+
+        using var response = await _http.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        return response.IsSuccessStatusCode
+            ? body
+            : throw new InvalidOperationException($"MyInnovator answered {(int)response.StatusCode} {response.StatusCode}. {Truncate(Condense(body), 300)}");
+    }
+
     private async Task<string> PostLicensingAsync(
         string operation,
         Dictionary<string, string>? parameters,

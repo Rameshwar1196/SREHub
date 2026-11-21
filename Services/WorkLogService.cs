@@ -89,6 +89,30 @@ public sealed class WorkLogService
         return entry;
     }
 
+    // Changes only the daily work summary of a day; attendance, escalation and the other fields stay as they are.
+    public async Task UpdateSummaryAsync(string date, Func<string, string> edit, CancellationToken cancellationToken)
+    {
+        var month = await GetMonthAsync(date.Length >= 7 ? date[..7] : date, cancellationToken);
+        var existing = month.Entries.FirstOrDefault(item => item.Date == date);
+        var summary = edit(existing?.Summary ?? string.Empty);
+
+        if (existing is null ? summary.Length == 0 : summary == existing.Summary)
+        {
+            return;
+        }
+
+        await SaveAsync(date, new WorkLogEntry
+        {
+            Date = date,
+            Attendance = existing?.Attendance ?? string.Empty,
+            EmergencyLeave = existing?.EmergencyLeave ?? string.Empty,
+            NetworkPower = existing?.NetworkPower ?? string.Empty,
+            Summary = summary,
+            Escalation = existing?.Escalation ?? string.Empty,
+            Note = existing?.Note ?? string.Empty
+        }, cancellationToken);
+    }
+
     // Period is a month (2026-10) or a whole year (2026).
     public async Task<string> ExportCsvAsync(string period, CancellationToken cancellationToken)
     {

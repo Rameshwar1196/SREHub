@@ -371,7 +371,11 @@ export function initWorkLogView(): void {
             banner.style.setProperty('--h', String((month - 1) * 30));
             const cell = banner.insertCell();
             cell.colSpan = 8;
-            cell.textContent = `${MONTHS[month - 1].toUpperCase()} ${state.year} - 1 ${short} TO ${days} ${short}`;
+            const pill = el('span', 'wl-month-pill');
+            pill.append(el('strong', undefined, `${MONTHS[month - 1].toUpperCase()} ${state.year}`), el('span', undefined, `1 ${short} - ${days} ${short}`));
+            const center = el('div', 'wl-month-center');
+            center.appendChild(pill);
+            cell.appendChild(center);
 
             for (let day = 1; day <= days; day++) {
                 const date = `${state.year}-${pad(month)}-${pad(day)}`;

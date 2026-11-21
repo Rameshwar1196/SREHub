@@ -776,13 +776,13 @@
                         <div>
                             <p class="kicker">Other</p>
                             <h2>Important links</h2>
-                            <p class="page-sub">Keep the sites you use every day one click away. Links open in a new tab.</p>
+                            <p class="page-sub">Keep the sites you use every day one click away. Links open in one reusable work tab; use Open here to view a site inside SreHub when it allows that.</p>
                         </div>
                         <input type="search" id="link-filter" class="link-filter" placeholder="Search links" aria-label="Search links" />
                     </div>
 
                     <details class="panel link-panel" id="link-panel">
-                        <summary id="link-form-title">Add a link</summary>
+                        <summary id="link-form-title">Add a link to manage your work</summary>
                         <form id="link-form">
 
                             <div class="row">
@@ -838,6 +838,22 @@
                             </div>
                         </form>
                     </details>
+
+                    <section id="link-viewer" class="link-viewer" hidden aria-live="polite">
+                        <header class="link-viewer-head">
+                            <div class="link-viewer-title">
+                                <strong id="link-viewer-name"></strong>
+                                <span id="link-viewer-host" class="hint"></span>
+                            </div>
+                            <div class="link-viewer-actions">
+                                <button type="button" id="link-viewer-reload" class="link-button">Reload</button>
+                                <button type="button" id="link-viewer-tab" class="link-button">Work tab</button>
+                                <button type="button" id="link-viewer-side" class="link-button">Side window</button>
+                                <button type="button" id="link-viewer-close" class="link-button">Close</button>
+                            </div>
+                        </header>
+                        <div id="link-viewer-body" class="link-viewer-body"></div>
+                    </section>
 
                     <div id="link-list" class="link-list"></div>
                 </div>
@@ -899,7 +915,22 @@
                             <section class="wl-card">
                                 <div class="wl-card-head">
                                     <h3>Iteration targets</h3>
-                                    <span id="dp-save-state" class="worklog-state" role="status"></span>
+                                    <div class="wl-actions">
+                                        <i id="dp-sync-dot" class="dp-dot" aria-hidden="true" hidden></i>
+                                        <span id="dp-sync-status" class="hint" role="status"></span>
+                                        <div class="dp-menu-wrap">
+                                            <button type="button" id="dp-sync" class="link-button" aria-haspopup="true" aria-expanded="false" aria-controls="dp-sync-menu"
+                                                title="Pull the work items assigned to you into the matching iterations. Both sources also sync automatically on the first and last day of an iteration.">
+                                                Sync work items
+                                                <svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+                                            </button>
+                                            <ul id="dp-sync-menu" class="dp-menu" role="menu" hidden>
+                                                <li><button type="button" role="menuitem" data-source="ado"><i class="dp-dot" data-source="ado" aria-hidden="true"></i>Azure DevOps</button></li>
+                                                <li><button type="button" role="menuitem" data-source="sre"><i class="dp-dot" data-source="sre" aria-hidden="true"></i>Support portal</button></li>
+                                            </ul>
+                                        </div>
+                                        <span id="dp-save-state" class="worklog-state" role="status"></span>
+                                    </div>
                                 </div>
 
                                 <div class="dp-iteration">
@@ -933,30 +964,43 @@
 
                             <section class="wl-card">
                                 <div class="wl-card-head">
-                                    <h3>Day update</h3>
+                                    <h3>What I achieved in the current iteration</h3>
+                                    <span id="dp-achieved-count" class="hint"></span>
+                                </div>
+                                <p class="hint">Targets marked Done move here and stay visible on every day of the iteration.</p>
+                                <div id="dp-achieved-host" class="dp-achieved"></div>
+                            </section>
+
+                            <section id="dp-update-card" class="wl-card dp-update">
+                                <div class="wl-card-head">
+                                    <button type="button" id="dp-update-toggle" class="dp-collapse" aria-expanded="false" aria-controls="dp-update-body">
+                                        <svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="m7 10 5 5 5-5" />
+                                        </svg>
+                                        <h3>Iteration update</h3>
+                                        <span id="dp-update-summary" class="dp-update-summary"></span>
+                                    </button>
                                     <div class="wl-actions">
                                         <span id="dp-push-status" class="wl-bulk-status" role="status"></span>
                                         <button type="button" id="dp-push" class="link-button"
-                                            title="Copy the What I achieved lines into the Micro-mgmt daily work summary for this date (replaces the summary there)">Push to work log</button>
+                                            title="Copy What I achieved today (and targets completed on this date) into the Micro-mgmt daily work summary for this date (replaces the summary there)">Push to work log</button>
                                     </div>
                                 </div>
 
-                                <div class="field">
-                                    <label for="dp-focus">Focus of the day</label>
-                                    <input type="text" id="dp-focus" maxlength="200" placeholder="The one outcome that makes today a success" />
-                                </div>
-                                <div class="field">
-                                    <label for="dp-endofday">What I achieved <span class="hint">(targets marked Done are added here automatically)</span></label>
-                                    <textarea id="dp-endofday" rows="4" maxlength="1000"></textarea>
-                                </div>
-                                <div class="row">
-                                    <div class="field">
-                                        <label for="dp-blockers">Blockers and risks</label>
-                                        <textarea id="dp-blockers" rows="3" maxlength="1000"></textarea>
+                                <div id="dp-update-body" class="dp-update-body dp-update-grid" hidden>
+                                    <div class="dp-note" data-kind="achieved">
+                                        <label for="dp-endofday">What I achieved today</label>
+                                        <span class="hint">Extra notes beyond targets. Targets completed today are added when you push to the work log.</span>
+                                        <textarea id="dp-endofday" rows="4" maxlength="1000" placeholder="Support chats, meetings, anything not tracked as a target"></textarea>
                                     </div>
-                                    <div class="field">
-                                        <label for="dp-tomorrow">Plan for tomorrow</label>
-                                        <textarea id="dp-tomorrow" rows="3" maxlength="1000"></textarea>
+                                    <div class="dp-note" data-kind="blockers">
+                                        <label for="dp-blockers">Blockers and risks</label>
+                                        <span class="hint">Targets marked Blocked are listed here automatically.</span>
+                                        <textarea id="dp-blockers" rows="4" maxlength="1000" placeholder="What is in the way or could go wrong"></textarea>
+                                    </div>
+                                    <div class="dp-note dp-note-wide" data-kind="tomorrow">
+                                        <label for="dp-tomorrow">Notes for tomorrow</label>
+                                        <textarea id="dp-tomorrow" rows="2" maxlength="1000" placeholder="Focus and next steps for the next working day"></textarea>
                                     </div>
                                 </div>
                             </section>
@@ -1344,7 +1388,7 @@
                         <aside class="wl-side">
                             <section class="wl-card">
                                 <div class="wl-card-head">
-                                    <h3>Monthly Summary</h3>
+                                    <h3>Quarter Summary</h3>
                                     <span id="duty-summary-period"></span>
                                 </div>
                                 <p id="duty-next" class="wl-bulk-status"></p>
