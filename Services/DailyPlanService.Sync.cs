@@ -60,6 +60,32 @@ public sealed partial class DailyPlanService
                 changed = true;
             }
 
+            // A target typed in by hand for a work item the source also returns is linked to it instead of being duplicated or ignored.
+            foreach (var item in assigned.DistinctBy(item => item.Id))
+            {
+                var key = options.Prefix + item.Id;
+
+                if (existing.ContainsKey(key) || Classify(item.State, options) == WorkItemCategory.Removed)
+                {
+                    continue;
+                }
+
+                var manual = store.Iterations
+                    .SelectMany(iteration => iteration.Targets.Select(target => (Plan: iteration, Target: target)))
+                    .FirstOrDefault(entry => entry.Target.ExternalId.Length == 0 && TitleStartsWithId(entry.Target.Title, item.Id));
+
+                if (manual.Target is null)
+                {
+                    continue;
+                }
+
+                manual.Target.ExternalId = key;
+                existing[key] = manual;
+                store.DismissedExternalIds.Remove(key);
+                dismissed.Remove(key);
+                changed = true;
+            }
+
             foreach (var item in assigned.DistinctBy(item => item.Id))
             {
                 var key = options.Prefix + item.Id;
@@ -195,6 +221,12 @@ public sealed partial class DailyPlanService
         desired.Targets.Add(target);
         existing[key] = (desired, target);
         return true;
+    }
+
+    private static bool TitleStartsWithId(string title, string id)
+    {
+        var text = title.TrimStart('#', ' ');
+        return text.StartsWith(id, StringComparison.OrdinalIgnoreCase) && (text.Length == id.Length || !char.IsLetterOrDigit(text[id.Length]));
     }
 
     private static bool IsUntouched(IterationTarget target) =>

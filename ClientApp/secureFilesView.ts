@@ -471,6 +471,12 @@ function initVaultView(config: VaultConfig): void {
                 const edit = el('button', 'link-button', 'Edit');
                 edit.type = 'button';
 
+                // Remove is only offered while the link is being edited, so it cannot be hit by mistake.
+                const remove = el('button', 'link-button danger', 'Remove');
+                remove.type = 'button';
+                remove.hidden = true;
+                remove.addEventListener('mousedown', (event) => event.preventDefault());
+
                 // A saved link shows as a short readable name; the long address only appears while editing.
                 const paint = (editing: boolean): void => {
                     const href = safeUrl(link.url);
@@ -493,6 +499,7 @@ function initVaultView(config: VaultConfig): void {
                     }
 
                     edit.hidden = editing || !href;
+                    remove.hidden = !(editing || !href);
                 };
 
                 input.addEventListener('change', () => {
@@ -511,12 +518,14 @@ function initVaultView(config: VaultConfig): void {
                     input.select();
                 });
 
-                const remove = el('button', 'link-button danger', 'Remove');
-                remove.type = 'button';
                 remove.addEventListener('click', () => {
-                    links().splice(index, 1);
-                    draw();
-                    void save();
+                    void (async () => {
+                        if (await askConfirm('Remove link', `Remove the link "${link.label}"? The address is not recoverable afterwards.`, 'Remove')) {
+                            links().splice(index, 1);
+                            draw();
+                            await save();
+                        }
+                    })();
                 });
 
                 paint(false);

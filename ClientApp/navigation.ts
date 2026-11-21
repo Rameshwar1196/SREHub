@@ -8,6 +8,10 @@ export function onViewShown(viewId: string, handler: () => void): void {
     });
 }
 
+export function onAnyViewShown(handler: (viewId: string) => void): void {
+    document.addEventListener(VIEW_SHOWN, (event) => handler((event as CustomEvent<string>).detail));
+}
+
 export function showView(viewId: string): void {
     document.querySelectorAll<HTMLElement>('.view').forEach((view) => {
         view.classList.toggle('active', view.id === viewId);

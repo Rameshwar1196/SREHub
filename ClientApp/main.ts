@@ -11,6 +11,8 @@ import { initMathsLibraryView } from './mathsLibraryView.js';
 import { initMathsBookView } from './mathsBookView.js';
 import { wireLicenseViews } from './licenseView.js';
 import { showView } from './navigation.js';
+import { initNavPins } from './navPins.js';
+import { initSearchBox } from './searchBox.js';
 import { initViewTabs } from './viewTabs.js';
 import { initRepositoriesView } from './repositoryView.js';
 import { initTerminalView } from './terminalView.js';
@@ -31,7 +33,6 @@ function wireNavigation(): void {
 }
 
 function wireNavGroups(): void {
-    const shell = byId('app-shell');
     const groups = [...document.querySelectorAll<HTMLElement>('.nav-group')];
     const settings = new Map<HTMLElement, { apply: (collapsed: boolean) => void; persist: (collapsed: boolean) => void }>();
 
@@ -73,12 +74,6 @@ function wireNavGroups(): void {
         apply(stored === 'true');
 
         head.addEventListener('click', () => {
-            if (shell.dataset.collapsed === 'true') {
-                byId<HTMLButtonElement>('rail-toggle').click();
-                expandOnly(group);
-                return;
-            }
-
             if (group.dataset.collapsed === 'true') {
                 expandOnly(group);
             } else {
@@ -231,6 +226,8 @@ wireNavigation();
 wireHome();
 wireNavGroups();
 bindCollapse(byId('app-shell'), byId<HTMLButtonElement>('rail-toggle'), 'srehub.rail', 'navigation');
+initNavPins();
+initSearchBox();
 wireProfileMenu();
 wireTheme();
 wireLicenseViews();

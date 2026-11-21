@@ -683,6 +683,21 @@ public sealed class DailyPlanServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Sync_LinksAHandTypedTargetToItsWorkItemAndMarksItDoneWhenClosed()
+    {
+        await Save(Friday, Target("#101 Typed by hand", "ACF"));
+        var typed = (await _service.GetAsync(Friday, CancellationToken.None)).Iteration.Targets;
+        await _service.SaveAsync(Friday, new DailyPlanSave { Targets = typed, RemovedExternalIds = ["ado:101"] }, CancellationToken.None);
+
+        var result = await Sync([WorkItem("101", "Closed", closedOn: new DateTime(2026, 11, 12))]);
+
+        var target = (await _service.GetAsync(Friday, CancellationToken.None)).Iteration.Targets.Single();
+        Assert.Equal(0, result.Added);
+        Assert.Equal("Done", target.Status);
+        Assert.Equal("2026-11-12", target.CompletedOn);
+    }
+
+    [Fact]
     public async Task Save_FromAnOlderPageKeepsTargetsSyncedSinceItLoaded()
     {
         await Save(Friday, Target("Manual target"));

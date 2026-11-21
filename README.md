@@ -133,6 +133,20 @@ Each `key_name` becomes a secret holding the selected variant value; characters 
 replaced with `-`. Identical values report `Unchanged` so no new version is created. "Preview only" is on
 by default and reports `WouldUpdate` without writing.
 
+## Sidebar contents
+
+- The sidebar is a tree: each section has an indented list of items on a coloured guide line. Aras Operations is periwinkle blue; Learning, My Hub and Mathematics keep cyan, amber and green.
+- Every page entry has a small coloured icon (matching its section) instead of a number.
+- **Pin to Sidebar:** right-click any item, or click the pin that appears when you hover over it. Pinned items get their icon in the slim strip at the left edge of the window, highlighted while their page is open. Click the icon to open the page; right-click it (or the item in the tree) for **Unpin from Sidebar**. Pins are remembered in the browser.
+- The list button at the top of the strip shows or hides the **Contents** panel. The pin next to **Contents** keeps the panel docked; unpinning it hides the panel until you open it from the strip, and it closes on Escape, an outside click or choosing a page. It is the same state as the collapse button in the top bar.
+- Learning sections number their subjects 1, 2, 3… within the section (the folder numbers are not shown).
+
+## Global search
+
+- The search box in the top bar finds **pages**, **Daily plan** targets of the current iteration, **links**, **Learning subjects** and lines inside **Learning notes**. Press **Ctrl+K** (or **/** outside a text field) to jump to it, **↑ / ↓** to move, **Enter** to open the result and **Esc** to close.
+- A page opens in SreHub, a plan result opens the Daily plan, a link opens in the work tab, and a note opens the file in the Learning library. Type at least two characters; several words must all match.
+- The old collapse button in the top bar is gone; use the list button on the left strip or the pin next to **Contents**.
+
 ## Daily plan targets and DO handover
 
 - A work item only counts as an iteration **target** once you choose its **days**. Items without days (including synced ones) are listed under "Not planned" and are left out of the progress percentage.

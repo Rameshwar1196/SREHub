@@ -91,6 +91,9 @@ function topicOf(subjectId: string): string {
     return TOPICS.find((topic) => topic.numbers.includes(number))?.id ?? 'practice';
 }
 
+// Subject folders keep their own numbers for ordering; the menu counts 1, 2, 3 within each section instead.
+const plainTitle = (title: string): string => title.replace(/^\d+\s*[\u2014\u2013\-.:]\s*/, '').trim() || title;
+
 const TOPIC_KEY = 'srehub.learning.topics';
 let openTopics: Set<string> | undefined;
 
@@ -188,9 +191,10 @@ function renderSubjectList(): void {
             const item = el('li');
             const button = el('button', `subject-item${subject.id === state.subjectId ? ' active' : ''}`);
             button.style.setProperty('--hue', String(hueFor(subject.id)));
+            const position = state.subjects.filter((other) => topicOf(other.id) === topic.id).findIndex((other) => other.id === subject.id) + 1;
 
             button.append(
-                el('span', 'subject-title', subject.title),
+                el('span', 'subject-title', `${position}. ${plainTitle(subject.title)}`),
                 el('span', 'subject-meta', `${subject.completedCount}/${subject.fileCount} done`),
                 progressBar(subject.completedCount, subject.fileCount)
             );
@@ -220,6 +224,16 @@ function progressBar(done: number, total: number): HTMLElement {
     fill.style.width = `${total === 0 ? 0 : Math.round((done / total) * 100)}%`;
     track.appendChild(fill);
     return track;
+}
+
+export async function openLearningLocation(subjectId: string, path?: string): Promise<void> {
+    showView('view-learning');
+    setMode('browse');
+    await openSubject(subjectId);
+
+    if (path) {
+        await openFile(path);
+    }
 }
 
 async function openSubject(subjectId: string, scope?: Scope): Promise<void> {

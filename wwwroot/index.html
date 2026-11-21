@@ -13,7 +13,24 @@
     <div class="bg-decor" aria-hidden="true"></div>
 
     <div id="app-shell" class="loading" data-view="view-home">
-        <aside class="app-rail">
+        <div id="pin-strip" class="pin-strip">
+            <button type="button" id="strip-contents" class="strip-contents" aria-expanded="true" aria-controls="app-rail"
+                title="Show or hide Contents" aria-label="Show or hide Contents">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 6h13M8 12h13M8 18h13" />
+                    <path d="M3 6h.01M3 12h.01M3 18h.01" />
+                </svg>
+            </button>
+            <div id="strip-pins" class="strip-pins" role="toolbar" aria-label="Pinned items"></div>
+            <p id="strip-hint" class="strip-hint" title="Right-click an item in Contents and choose Pin to Sidebar">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 17v5" />
+                    <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+                </svg>
+            </p>
+        </div>
+
+        <aside id="app-rail" class="app-rail">
             <div class="brand">
                 <span class="brand-mark" aria-hidden="true">
                     <svg class="icon" viewBox="0 0 24 24">
@@ -25,6 +42,19 @@
                     <strong>SRE Hub</strong>
                     <small>Learning library and Aras operations tooling</small>
                 </span>
+            </div>
+
+            <div class="nav-contents">
+                <div class="nav-contents-head">
+                    <span class="nav-contents-title">Contents</span>
+                    <button type="button" id="nav-pin-rail" class="nav-pin-toggle" aria-pressed="true"
+                        title="Keep the sidebar open" aria-label="Keep the sidebar open">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 17v5" />
+                            <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <nav class="nav" aria-label="Primary">
@@ -241,14 +271,24 @@
         <div class="app-body">
             <header class="app-topbar">
                 <button type="button" id="rail-toggle" class="toggle-button" title="Collapse navigation"
-                    aria-label="Collapse navigation" aria-expanded="true">
+                    aria-label="Collapse navigation" aria-expanded="true" hidden>
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M14.5 7 9.5 12l5 5" />
                         <path d="M4.5 4v16" />
                     </svg>
                 </button>
 
-                <div class="topbar-spacer"></div>
+                <div class="gsearch" id="global-search" role="search">
+                    <svg class="gsearch-icon icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="m20 20-3.6-3.6" />
+                    </svg>
+                    <input id="global-search-input" class="gsearch-input" type="search" autocomplete="off" spellcheck="false"
+                        placeholder="Search pages, plan, links and learning notes" aria-label="Search SreHub"
+                        role="combobox" aria-expanded="false" aria-controls="global-search-panel" aria-autocomplete="list" />
+                    <kbd class="gsearch-key" aria-hidden="true">Ctrl K</kbd>
+                    <div id="global-search-panel" class="gsearch-panel" role="listbox" hidden></div>
+                </div>
 
                 <div class="profile">
                     <button type="button" id="profile-toggle" class="profile-button" aria-haspopup="menu"
@@ -1138,10 +1178,10 @@
                                     <tbody id="worklog-summary-body"></tbody>
                                 </table>
 
-                                <ul class="wl-legend" aria-label="Row colours">
+                                <ul class="wl-legend wl-legend-rows" aria-label="Row colours">
                                     <li><i class="dot sat"></i>Saturday</li>
                                     <li><i class="dot sun"></i>Sunday</li>
-                                    <li><i class="dot today"></i>Today</li>
+                                    <li><span class="wl-today-key">Today</span>Today's row</li>
                                 </ul>
                             </section>
 
